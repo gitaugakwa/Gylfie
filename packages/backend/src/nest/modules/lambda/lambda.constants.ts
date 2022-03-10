@@ -1,0 +1,1 @@
+export const LAMBDA_PROPS = "LAMBDA_OPTIONS";

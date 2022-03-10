@@ -1,0 +1,3 @@
+export const AUTHENTICATION_PROPS = "AUTHENTICATION_OPTIONS";
+export const JWT_PROPS = "JWT_OPTIONS";
+export const JWK_PROPS = "JWT_OPTIONS";
