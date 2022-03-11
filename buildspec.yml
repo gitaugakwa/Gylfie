@@ -1,10 +1,19 @@
 version: 0.2
 
+env:
+    variables:
+        CDK_LOCATION: CLOUD
+        AWS_DOMAIN: gylfie
+        AWS_REPOSITORY: gylfie
+
 phases:
     install:
         runtime-versions:
-            nodejs: 14
+            python: latest
+            nodejs: latest
         commands:
+            - "printenv"
+            - "aws --version"
             - "npm -v"
             - "npm install -g pnpm @microsoft/rush"
     pre_build:
@@ -12,9 +21,10 @@ phases:
             - "rush install --no-link"
             - "rush link"
             - "aws codeartifact login --domain gylfie --repository gylfie --tool npm --namespace @gylfie"
+            - "python ./scripts/co_login.py"
     build:
         commands:
             - "rush rebuild --verbose"
     post_build:
         commands:
-            - "rush publish --publish"
+            - "rush publish --publish --include-all"
