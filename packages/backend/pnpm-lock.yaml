@@ -2,8 +2,8 @@ lockfileVersion: 5.3
 
 specifiers:
     "@gylfie/common": link:..\common
-    "@gylfiejs/common": link:..\common
+    "@gylfie/common": link:..\common
 
 dependencies:
     "@gylfie/common": link:../common
-    "@gylfiejs/common": link:../common
+    "@gylfie/common": link:../common

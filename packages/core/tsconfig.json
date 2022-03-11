@@ -1,0 +1,22 @@
+{
+	"compilerOptions": {
+		"module": "CommonJS",
+		"strict": true,
+		"declaration": true,
+		"declarationMap": true,
+		"removeComments": true,
+		"emitDecoratorMetadata": true,
+		"moduleResolution": "node",
+		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true,
+		"noImplicitReturns": true,
+		"target": "es2020",
+		"lib": ["ES2020"],
+		"sourceMap": true,
+		"outDir": "./lib",
+		"pretty": true,
+		"baseUrl": "./",
+		"incremental": true
+	}
+}

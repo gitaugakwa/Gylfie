@@ -30,7 +30,7 @@ import { LOGGER_PROPS } from "../../modules/logger/logger.constants";
 // Since we currently don't care about other libraries,
 // we don't need to lay down the ground work
 // But the current thought is that for some services,
-// they may only be included through explicit paths, i.e. @gylfiejs/common/services/nest
+// they may only be included through explicit paths, i.e. @gylfie/common/services/nest
 
 export interface NestLoggerServiceProps extends LoggerServiceProps {
 	lambda?: string;

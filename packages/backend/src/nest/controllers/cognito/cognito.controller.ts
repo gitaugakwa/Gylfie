@@ -2,9 +2,9 @@ import { Controller, Post, Put, Get, Patch, Body } from "@nestjs/common";
 // import { Groups } from "@gylfie/common/lib/base";
 import { GroupResponse } from "@gylfie/common/lib/cognito";
 import { NestCognitoService } from "../../services/cognito";
-// import { GroupResponse } from "@gylfiejs/common";
-// import {} from "@gylfiejs/common";
-// import {} from '@gylfiejs/common'
+// import { GroupResponse } from "@gylfie/common";
+// import {} from "@gylfie/common";
+// import {} from '@gylfie/common'
 
 @Controller("cognito")
 export class CognitoController {

@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+    install:
+        runtime-versions:
+            nodejs: 14
+        commands:
+            - "npm -v"
+            - "npm install -g pnpm @microsoft/rush"
+    pre_build:
+        commands:
+            - "rush install --no-link"
+            - "rush link"
+            - "aws codeartifact login --domain gylfie --repository gylfie --tool npm --namespace @gylfie"
+    build:
+        commands:
+            - "rush rebuild --verbose"
+    post_build:
+        commands:
+            - "rush publish --publish"
