@@ -8,6 +8,7 @@ import { BaseService, BaseServiceProps, State } from "../../base/services";
 import { LambdaFunction } from "../models";
 import { GylfieError } from "../../base/errors";
 import { fromEnv } from "@aws-sdk/credential-providers";
+import { LOCAL_LAMBDA_PORT } from "../constants";
 
 export interface LambdaServiceProps extends BaseServiceProps {
 	region?: string;
@@ -25,7 +26,8 @@ export class LambdaService extends BaseService {
 		// https://github.com/ashiina/lambda-local
 		this.port =
 			props?.port ??
-			(parseInt(process.env.LOCAL_LAMBDA_PORT ?? "") || 8000);
+			(parseInt(process.env.LOCAL_LAMBDA_PORT ?? "") ||
+				LOCAL_LAMBDA_PORT);
 
 		this.lambda = new LambdaClient({
 			region: props?.region ?? "eu-west-1",

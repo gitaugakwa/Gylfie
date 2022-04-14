@@ -12,19 +12,20 @@ phases:
             python: latest
             nodejs: latest
         commands:
-            - "printenv"
+            # - "printenv"
             - "aws --version"
             - "npm -v"
             - "npm install -g pnpm @microsoft/rush"
     pre_build:
         commands:
+            - "rush update --no-link --recheck --purge"
             - "rush install --no-link"
             - "rush link"
             - "aws codeartifact login --domain gylfie --repository gylfie --tool npm --namespace @gylfie"
-            - "python ./scripts/co_login.py"
+            # - "python ./scripts/co_login.py"
     build:
         commands:
             - "rush rebuild --verbose"
     post_build:
         commands:
-            - "rush publish --publish --include-all"
+            - "pnpm -r publish packages"

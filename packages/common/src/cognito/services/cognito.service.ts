@@ -57,6 +57,7 @@ import {
 import { Placeholder } from "../../dynamo/placeholders";
 import { fromEnv } from "@aws-sdk/credential-providers";
 import { omitBy, isUndefined, isNull, isNil } from "lodash";
+import { LOCAL_COGNITO_PORT } from "../constants";
 
 // Should we have friendly ids for users?
 // I don't think it would be advised
@@ -203,7 +204,8 @@ export class CognitoService extends BaseService {
 		// const { port, clientID, userPoolID, credentials } = props;
 		this.port =
 			props?.port ??
-			(parseInt(process.env.LOCAL_COGNITO_PORT ?? "") || 9229);
+			(parseInt(process.env.LOCAL_COGNITO_PORT ?? "") ||
+				LOCAL_COGNITO_PORT);
 		// // this.accessPattern = new AccessPattern(props.access);
 		this.clientID =
 			props?.clientID ?? process.env.COGNITO_APP_CLIENT_ID ?? "";

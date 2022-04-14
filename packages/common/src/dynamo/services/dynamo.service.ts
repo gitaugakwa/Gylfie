@@ -55,6 +55,7 @@ import {
 import { AccessPatternsClass } from "../decorators";
 import { capitalize, merge } from "lodash";
 import { CacheService, CacheServiceProps } from "./cache.service";
+import { LOCAL_DYNAMO_PORT } from "../constants";
 
 export interface DynamoServiceProps extends BaseServiceProps {
 	tables?: TableProps[];
@@ -91,7 +92,8 @@ export class DynamoService extends BaseService {
 		super();
 		this.port =
 			props?.port ??
-			(parseInt(process.env.LOCAL_DYNAMO_PORT ?? "") || 8000);
+			(parseInt(process.env.LOCAL_DYNAMO_PORT ?? "") ||
+				LOCAL_DYNAMO_PORT);
 		this.dynamoDB = new DynamoDBClient({
 			region: props?.region ?? process.env.DYNAMO_REGION ?? "eu-west-1",
 			credentials: props?.credentials ?? fromEnv(),
