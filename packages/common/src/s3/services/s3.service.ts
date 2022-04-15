@@ -36,8 +36,6 @@ import { LOCAL_S3_PORT } from "../constants";
 
 export interface S3ServiceProps extends BaseServiceProps {
 	buckets: BucketProps[];
-	port?: number;
-	region?: string;
 }
 
 // type ACLs =

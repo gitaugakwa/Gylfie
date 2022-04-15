@@ -51,6 +51,7 @@ import {
 	TableProps,
 	TransactionConflictError,
 	UpdateRequestOptions,
+	LOCAL_DYNAMO_PORT,
 } from "@gylfie/common/lib/dynamo";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -116,7 +117,7 @@ export class NestDynamoService extends BaseNestService {
 		this.port =
 			props.port ??
 			this.configService?.get<number>("LOCAL_DYNAMO_PORT") ??
-			8000;
+			LOCAL_DYNAMO_PORT;
 		props.tables.forEach((val) => {
 			this.tables[val.name] = new Table(val);
 		});

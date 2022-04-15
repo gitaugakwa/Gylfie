@@ -5,11 +5,15 @@ import {
 	GetObjectCommand,
 	ListBucketsCommand,
 	ListObjectsV2Command,
+	ObjectCannedACL,
 	PutObjectCommand,
 	S3Client,
 } from "@aws-sdk/client-s3";
-import { fromEnv } from "@aws-sdk/credential-providers";
+import { fromEnv, fromIni } from "@aws-sdk/credential-providers";
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
+import { Conditions } from "@aws-sdk/s3-presigned-post/dist-types/types";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { RequestPresigningArguments } from "@aws-sdk/types";
 import {
 	BaseService,
 	BaseServiceProps,
@@ -27,6 +31,7 @@ import {
 	Bucket,
 	BucketProps,
 	S3ServiceProps,
+	LOCAL_S3_PORT,
 } from "@gylfie/common/lib/s3";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -70,7 +75,7 @@ export class NestS3Service extends BaseNestService {
 		this.port =
 			props.port ??
 			this.configService?.get<number>("LOCAL_S3_PORT") ??
-			4566; // Localstack default
+			LOCAL_S3_PORT; // Localstack default
 		props.buckets.forEach((val) => {
 			this.buckets[val.name] = new Bucket(val);
 		});
@@ -110,12 +115,13 @@ export class NestS3Service extends BaseNestService {
 	}
 
 	// @States(State.Local, State.Online)
-	public async put(
-		Bucket: string,
-		Key: string,
-		Body: string | Buffer | Uint8Array | Readable,
-		ACL?: ACLs
-	) {
+	public async put(props: {
+		bucket: string;
+		key: string;
+		body: string | Buffer | Uint8Array | Readable;
+		ACL?: ObjectCannedACL;
+	}) {
+		const { body: Body, bucket: Bucket, key: Key, ACL } = props;
 		try {
 			// We could use abort here but since it is serverless,
 			// That might not be functional
@@ -128,6 +134,21 @@ export class NestS3Service extends BaseNestService {
 		}
 	}
 
+	public async postPresignedURL(props: {
+		bucket: string;
+		key: string;
+		conditions?: Conditions[];
+		fields?: Record<string, string>;
+		expires?: number;
+	}) {
+		const { bucket: Bucket, key: Key } = props;
+		const presignedPost = await createPresignedPost(this.S3, {
+			Bucket,
+			Key,
+		});
+		return presignedPost;
+	}
+
 	// We will require content length in order to provide a presigned url
 	// This is a safety measure since the upload size can be massive
 	// There is a http POST method for S3 buckets
@@ -135,27 +156,22 @@ export class NestS3Service extends BaseNestService {
 	// It'll need a path for generating the signature and stuff
 	// @States(State.Local, State.Online)
 	public async putPresignedURL(
-		Bucket: string,
-		Key: string,
-		ACL?: ACLs,
-		options?: PresignedURLOptions
+		props: { bucket: string; key: string; ACL?: ObjectCannedACL }, // PutObjectCommandInput
+		options?: Omit<RequestPresigningArguments, "expiresIn"> & {
+			expiresIn?: Duration | number;
+		}
 	): Promise<string> {
 		// Add parameter for type
 		// Since there are like 2 presigned urls that can be made
-		let Expires = undefined;
-		if (options?.expires) {
-			Expires =
-				typeof options?.expires == "number"
-					? options.expires
-					: options.expires.as("seconds");
+		const { bucket: Bucket, key: Key, ACL } = props;
+		let { expiresIn } = options ?? {};
+		if (expiresIn) {
+			expiresIn =
+				typeof expiresIn == "number"
+					? expiresIn
+					: expiresIn.as("seconds");
 		}
 		try {
-			// const { url } = await createPresignedPost(this.S3, {
-			// 	Bucket,
-			// 	Key,
-			// 	Expires,
-			// });
-			// return url;
 			const url = await getSignedUrl(
 				this.S3,
 				new PutObjectCommand({
@@ -166,7 +182,8 @@ export class NestS3Service extends BaseNestService {
 				{
 					// Conditions: [["content-length-range", 0, 10485760]], // Max 10 MB
 					// Fields: { acl: "public-read" },
-					expiresIn: Expires,
+					...options,
+					expiresIn,
 				}
 			);
 			return url;
@@ -189,7 +206,11 @@ export class NestS3Service extends BaseNestService {
 	// }
 
 	// @States(State.Local, State.Hybrid, State.Online)
-	public async get(Bucket: string, Key: string): Promise<Readable> {
+	public async get(props: {
+		bucket: string;
+		key: string;
+	}): Promise<Readable> {
+		const { bucket: Bucket, key: Key } = props;
 		try {
 			const { Body } = await this.S3.send(
 				new GetObjectCommand({ Bucket, Key })
@@ -208,16 +229,20 @@ export class NestS3Service extends BaseNestService {
 
 	// @States(State.Local, State.Hybrid, State.Online)
 	public async getPresignedURL(
-		Bucket: string,
-		Key: string,
+		props: {
+			bucket: string;
+			key: string;
+		},
 		options?: PresignedURLOptions
 	) {
-		let expiresIn = undefined;
-		if (options?.expires) {
+		const { bucket: Bucket, key: Key } = props;
+		let { expiresIn } = options ?? {};
+
+		if (expiresIn) {
 			expiresIn =
-				typeof options?.expires == "number"
-					? options.expires
-					: options.expires.as("seconds");
+				typeof expiresIn == "number"
+					? expiresIn
+					: expiresIn.as("seconds");
 		}
 		try {
 			return getSignedUrl(
@@ -232,7 +257,11 @@ export class NestS3Service extends BaseNestService {
 
 	// Developer Methods
 	// @States(State.Local, State.Hybrid, State.Online)
-	public async listObjects(Bucket: string, options?: ListObjectOptions) {
+	public async listObjects(
+		props: { bucket: string },
+		options?: ListObjectOptions
+	) {
+		const { bucket: Bucket } = props;
 		try {
 			const { CommonPrefixes } = await this.S3.send(
 				new ListObjectsV2Command({ Bucket })
@@ -262,7 +291,8 @@ export class NestS3Service extends BaseNestService {
 		}
 	}
 	// @States(State.Local, State.Online)
-	public async deleteBucket(Bucket: string) {
+	public async deleteBucket(props: { bucket: string }) {
+		const { bucket: Bucket } = props;
 		try {
 			await this.S3.send(new DeleteBucketCommand({ Bucket }));
 		} catch (err) {
@@ -307,5 +337,5 @@ export class NestS3Service extends BaseNestService {
 export interface CreateBucketOptions extends BucketProps {}
 interface ListObjectOptions {}
 interface PresignedURLOptions {
-	expires?: number | Duration;
+	expiresIn?: number | Duration;
 }

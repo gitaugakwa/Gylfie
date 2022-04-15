@@ -24,10 +24,10 @@ export class S3Controller {
 	// }
 
 	// @Public()
-	@Delete("/delete/:name")
-	deleteTable(@Param("name") name: string): void {
-		console.log(name);
-		this.s3Service.deleteBucket(name);
+	@Delete("/delete/:bucker")
+	deleteTable(@Param("bucket") bucket: string): void {
+		console.log(bucket);
+		this.s3Service.deleteBucket({ bucket });
 	}
 
 	// @Public()
@@ -37,8 +37,8 @@ export class S3Controller {
 	}
 
 	// @Public()
-	@Get(":name")
-	async listItemsInTable(@Param("name") name: string) {
-		return this.s3Service.listObjects(name);
+	@Get(":bucket")
+	async listItemsInTable(@Param("bucket") bucket: string) {
+		return this.s3Service.listObjects({ bucket });
 	}
 }

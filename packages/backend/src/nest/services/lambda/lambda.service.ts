@@ -14,7 +14,7 @@ import {
 	State,
 } from "@gylfie/common/lib/base";
 import { LAMBDA_PROPS } from "../../modules/lambda";
-import { LambdaFunction } from "@gylfie/common/lib/lambda";
+import { LambdaFunction, LOCAL_LAMBDA_PORT } from "@gylfie/common/lib/lambda";
 import { fromEnv } from "@aws-sdk/credential-providers";
 import { BaseNestService } from "../../base";
 

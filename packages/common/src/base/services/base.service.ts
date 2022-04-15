@@ -14,6 +14,9 @@ export interface BaseServiceProps {
 	service?: string;
 	environment?: string;
 	credentials?: Credentials | Provider<Credentials> | undefined;
+	port?: number;
+	profile?: string;
+	region?: string;
 	// request?: any; // based on the request
 	// context?: Context; // based on the request
 	moduleLogs?: string[]; // for now, though it would be a log object
