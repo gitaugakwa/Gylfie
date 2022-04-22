@@ -7,7 +7,9 @@ import {
 	ListObjectsV2Command,
 	ObjectCannedACL,
 	PutObjectCommand,
+	CopyObjectCommand,
 	S3Client,
+	DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { fromEnv, fromIni } from "@aws-sdk/credential-providers";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
@@ -35,6 +37,7 @@ import {
 } from "@gylfie/common/lib/s3";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { compact, concat, join } from "lodash";
 import { Duration } from "luxon";
 import { Readable } from "stream";
 import { BaseNestService } from "../../base";
@@ -156,14 +159,26 @@ export class NestS3Service extends BaseNestService {
 	// It'll need a path for generating the signature and stuff
 	// @States(State.Local, State.Online)
 	public async putPresignedURL(
-		props: { bucket: string; key: string; ACL?: ObjectCannedACL }, // PutObjectCommandInput
+		props: {
+			bucket: string;
+			key: string;
+			ACL?: ObjectCannedACL;
+			contentType?: string;
+			contentLength?: number;
+		}, // PutObjectCommandInput
 		options?: Omit<RequestPresigningArguments, "expiresIn"> & {
 			expiresIn?: Duration | number;
 		}
 	): Promise<string> {
 		// Add parameter for type
 		// Since there are like 2 presigned urls that can be made
-		const { bucket: Bucket, key: Key, ACL } = props;
+		const {
+			bucket: Bucket,
+			key: Key,
+			ACL,
+			contentLength: ContentLength,
+			contentType: ContentType,
+		} = props;
 		let { expiresIn } = options ?? {};
 		if (expiresIn) {
 			expiresIn =
@@ -178,6 +193,8 @@ export class NestS3Service extends BaseNestService {
 					Bucket,
 					Key,
 					ACL,
+					ContentLength,
+					ContentType,
 				}),
 				{
 					// Conditions: [["content-length-range", 0, 10485760]], // Max 10 MB
@@ -252,6 +269,40 @@ export class NestS3Service extends BaseNestService {
 			);
 		} catch (err) {
 			throw this.errorHandler(err);
+		}
+	}
+
+	public async copy(props: {
+		from: { bucket: string; key: string };
+		to: { bucket?: string; key: string };
+	}) {
+		const source = join(
+			concat(
+				compact(props.from.bucket.split("/")),
+				compact(props.from.key.split("/"))
+			),
+			"/"
+		);
+		const { key: Key, bucket: Bucket = props.from.bucket } = props.to;
+		try {
+			const result = await this.S3.send(
+				new CopyObjectCommand({ CopySource: source, Bucket, Key })
+			);
+		} catch (err) {
+			// throw new GylfieError(err);
+			throw new Error(err as any); // Fix
+		}
+	}
+
+	public async delete(props: { bucket: string; key: string }) {
+		const { key: Key, bucket: Bucket } = props;
+		try {
+			const result = await this.S3.send(
+				new DeleteObjectCommand({ Bucket, Key })
+			);
+		} catch (err) {
+			// throw new GylfieError(err);
+			throw new Error(err as any); // Fix
 		}
 	}
 

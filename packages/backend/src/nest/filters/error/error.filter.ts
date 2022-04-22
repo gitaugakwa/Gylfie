@@ -33,26 +33,22 @@ export class ErrorFilter implements ExceptionFilter {
 		// This might catch all errors
 
 		// console.log("Error Filter");
+		console.log(exception);
 
+		let response: GylfieResponse;
 		if (exception instanceof GylfieError) {
 			// console.log("Gylfie Error");
 			// console.log(exception);
 
 			const { time, ...error } = exception.display();
 			const status = exception.status ?? 500;
-			const response: GylfieResponse = {
+			response = {
 				error: { ...error, status, time: time.toISO() },
 			};
-			res.status(status).json(response);
-			return;
-		}
-		if (exception instanceof HttpException) {
-			// console.log("Http Error");
-			// console.log(exception);
-
+		} else if (exception instanceof HttpException) {
 			const { message, name } = exception;
 			const status = exception.getStatus();
-			const response: GylfieResponse = {
+			response = {
 				error: {
 					message,
 					name,
@@ -61,24 +57,21 @@ export class ErrorFilter implements ExceptionFilter {
 					time: DateTime.utc().toISO(),
 				},
 			};
-			res.status(status).json(response);
-			return;
+		} else {
+			response = {
+				error: {
+					...exception,
+					name: exception.name ?? "InternalServerError",
+					code: exception.code ?? "InternalServerError",
+					status: exception.status ?? 500,
+					time: exception.time ?? DateTime.utc().toISO(),
+				},
+			};
 		}
-		// console.log("Undetermined Error");
-		// console.log(exception);
-		const response: GylfieResponse = {
-			error: {
-				...exception,
-				name: exception.name ?? "InternalServerError",
-				code: exception.code ?? "InternalServerError",
-				status: exception.status ?? 500,
-				time: exception.time ?? DateTime.utc().toISO(),
-			},
-		};
 		console.log(this.logger?.logs);
 		this.logger?.end();
 		this.logger?.flush();
-		res.status(exception.status ?? 500).json(response);
+		res.status(response.error?.status ?? 500).json(response);
 	}
 }
 

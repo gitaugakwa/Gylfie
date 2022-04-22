@@ -9,6 +9,7 @@ import {
 	GetObjectCommand,
 	BucketCannedACL,
 	PutObjectCommandInput,
+	CopyObjectCommand,
 	ObjectCannedACL,
 } from "@aws-sdk/client-s3";
 import {
