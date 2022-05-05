@@ -1,2 +1,1 @@
 export const DYNAMO_PROPS = "DYNAMO_OPTIONS";
-export const CACHE_PROPS = "CACHE_OPTIONS";

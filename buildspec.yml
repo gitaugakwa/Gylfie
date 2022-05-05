@@ -9,7 +9,7 @@ env:
 phases:
     install:
         runtime-versions:
-            python: latest
+            # python: latest
             nodejs: latest
         commands:
             # - "printenv"

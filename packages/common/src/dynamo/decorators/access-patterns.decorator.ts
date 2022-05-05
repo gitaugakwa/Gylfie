@@ -1,4 +1,4 @@
-import { INDEX_TYPE, Key } from "../models";
+import { IndexType, Key } from "../models";
 import { Duration } from "luxon";
 import { ClassDecorator } from "../../base/decorators";
 

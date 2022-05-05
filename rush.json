@@ -468,18 +468,18 @@
 			"projectFolder": "packages/common",
 			"shouldPublish": true,
 			"versionPolicyName": "gylfie"
-		}
+		},
 		// {
 		//   "packageName": "@owljs/cdk",
 		//   "projectFolder": "packages/cdk",
 		//   "shouldPublish": true,
 		//   "versionPolicyName": "owljs"
 		// },
-		// {
-		// 	"packageName": "@gylfie/cli",
-		// 	"projectFolder": "packages/cli",
-		// 	"shouldPublish": true,
-		// 	"versionPolicyName": "gylfie"
-		// }
+		{
+			"packageName": "@gylfie/cli",
+			"projectFolder": "packages/cli",
+			"shouldPublish": true,
+			"versionPolicyName": "gylfie"
+		}
 	]
 }

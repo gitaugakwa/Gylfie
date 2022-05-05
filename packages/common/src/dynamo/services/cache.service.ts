@@ -11,7 +11,7 @@ export interface CacheObject<TValue> {
 }
 
 export interface CacheServiceProps extends BaseServiceProps {
-	duration?: number;
+	cache?: boolean | { duration?: number };
 }
 
 export interface CacheGetProps {
@@ -47,11 +47,17 @@ export class CacheService extends BaseService {
 	}): {
 		[key: string]: AttributeValue;
 	}[] {
-		const { key, value, duration } = props;
+		const { key, value } = props;
 		const hash = Hash(key);
+		let { duration } = props;
+		if (this.props?.cache) {
+			if (typeof this.props.cache == "object") {
+				duration = this.props.cache.duration;
+			}
+		}
 		this._cache[hash] = {
 			value,
-			duration: duration ?? this.props?.duration ?? 300000, // 5 min
+			duration: duration ?? 300000, // 5 min
 			creationDateTime: Date.now(),
 		};
 		return this._cache[hash].value;

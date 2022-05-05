@@ -5,7 +5,7 @@ import {
 	Key,
 } from "./key.model";
 import { EntityProps, IndexValue } from "../decorators";
-import { INDEX_TYPE } from "./index.model";
+import { IndexType } from "./index.model";
 import {
 	DynamoEntityConstructor,
 	EntityInterfaceProps,
@@ -29,6 +29,7 @@ export interface TableProps {
 	indexes?: {
 		[key: string]: IndexKeyDefinition;
 	};
+	cache?: boolean | { duration?: number };
 }
 
 enum TABLE_TYPE {
@@ -88,7 +89,7 @@ export class AccessProperties {
 
 export class Table {
 	// Base Cache
-	constructor(private structure: TableProps) {}
+	constructor(public structure: TableProps) {}
 
 	public getAccessProps(
 		key: Key,
@@ -253,7 +254,7 @@ export class Table {
 						{
 							name: indexName,
 							type:
-								value.type == INDEX_TYPE.GSI
+								value.type == IndexType.GSI
 									? TABLE_TYPE.GSI
 									: TABLE_TYPE.LSI,
 							attributeType:
@@ -326,7 +327,7 @@ export class Table {
 			const values: [string, string | number][] = [];
 
 			switch (type) {
-				case INDEX_TYPE.GSI: {
+				case IndexType.GSI: {
 					values.push([indexpkName, place.replaceString(indexPk)]);
 					if (indexskName && !indexSk) {
 						throw new Error(
@@ -344,7 +345,7 @@ export class Table {
 					]);
 					return values;
 				}
-				case INDEX_TYPE.LSI: {
+				case IndexType.LSI: {
 					return values;
 				}
 			}
@@ -374,7 +375,7 @@ export class Table {
 			const values: [string, string | number][] = [];
 
 			switch (type) {
-				case INDEX_TYPE.GSI: {
+				case IndexType.GSI: {
 					if (
 						!place.getPlaceholders(indexPk).some((value) => {
 							return getMetadata<boolean>(entity, "const", value);
@@ -415,7 +416,7 @@ export class Table {
 					}
 					return values;
 				}
-				case INDEX_TYPE.LSI: {
+				case IndexType.LSI: {
 					return values;
 				}
 			}
@@ -530,8 +531,8 @@ export class Table {
 									sortKey: indexSkName,
 								} = this.structure.indexes[indexName];
 								switch (type) {
-									case INDEX_TYPE.LSI:
-									case INDEX_TYPE.GSI: {
+									case IndexType.LSI:
+									case IndexType.GSI: {
 										if (indexSkName && !indexSk) {
 											throw new Error(
 												`GSI:${indexName} requires SortKey which is not provided in Entity:${name}`

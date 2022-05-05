@@ -1,5 +1,5 @@
 import { Condition } from "./condition.model";
-import { INDEX_TYPE } from "./index.model";
+import { IndexType } from "./index.model";
 import { DynamoDBValue } from "./types";
 
 // Definition
@@ -18,7 +18,7 @@ export interface PartitionPrimaryKeyDefinition {
 }
 
 export interface IndexKeyDefinition extends PartitionPrimaryKeyDefinition {
-	type: INDEX_TYPE;
+	type: IndexType;
 }
 
 //

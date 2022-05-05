@@ -7,13 +7,8 @@ import {
 	BaseServiceModuleProps,
 } from "@gylfie/common/lib/base";
 import { ConfigService } from "@nestjs/config";
-import {
-	NestCacheService,
-	NestCacheServiceProps,
-	NestDynamoService,
-	NestDynamoServiceProps,
-} from "../../services";
-import { CACHE_PROPS, DYNAMO_PROPS } from "./dynamo.constants";
+import { NestDynamoService, NestDynamoServiceProps } from "../../services";
+import { DYNAMO_PROPS } from "./dynamo.constants";
 
 export interface DynamoServiceModuleProps
 	extends BaseServiceModuleProps<NestDynamoServiceProps> {}
@@ -45,11 +40,6 @@ export class DynamoModule extends BaseModule {
 			DynamoServiceModuleProps,
 			DynamoModuleProps
 		>(props, base);
-		const cacheProps = this.getProps<
-			NestCacheServiceProps,
-			DynamoServiceModuleProps,
-			DynamoModuleProps
-		>(props, base);
 
 		const controllers = props.controller ? [DynamoController] : undefined;
 
@@ -59,12 +49,10 @@ export class DynamoModule extends BaseModule {
 			controllers,
 			providers: [
 				{ provide: DYNAMO_PROPS, useValue: dynamoProps },
-				{ provide: CACHE_PROPS, useValue: cacheProps },
-				NestCacheService,
 				NestDynamoService,
 				ConfigService,
 			],
-			exports: [NestDynamoService, NestCacheService],
+			exports: [NestDynamoService],
 		};
 	}
 }

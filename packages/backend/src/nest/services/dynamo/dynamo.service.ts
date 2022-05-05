@@ -55,29 +55,35 @@ import {
 } from "@gylfie/common/lib/dynamo";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { merge } from "lodash";
+import { isObject, merge } from "lodash";
 import { BaseNestService } from "../../base";
 import { DYNAMO_PROPS } from "../../modules/dynamo/dynamo.constants";
 import { NestLoggerService } from "../logger";
-import { NestCacheService, NestCacheServiceProps } from "./cache.service";
+import { NestCacheService, NestCacheServiceProps } from "../cache";
 
 export interface NestDynamoServiceProps extends DynamoServiceProps {
 	tables: TableProps[];
 	port?: number;
-	cache?: NestCacheServiceProps;
+	cache?: boolean | { duration?: number };
 }
 
-export interface CreateTableProps extends TableProps {
+interface CreateTableProvisionedProps {
+	billing: "PROVISIONED";
+	RCU: number;
+	WCU: number;
+}
+interface CreateTablePPRProps {
+	billing: "PAY_PER_REQUEST";
+}
+
+export type CreateTableProps = TableProps & {
 	indexes?: {
 		[key: string]: IndexDefinition;
 	};
 	attributes: {
 		[keys: string]: "S" | "N";
 	};
-	billing?: "PROVISIONED" | "PAY_PER_REQUEST";
-	RCU: number;
-	WCU: number;
-}
+} & (CreateTableProvisionedProps | CreateTablePPRProps);
 
 /**
  * Gylfie Dynamo Service
@@ -160,8 +166,8 @@ export class NestDynamoService extends BaseNestService {
 
 	//#endregion
 
-	private async tableExist(TableName: string): Promise<boolean> {
-		return (await this.listTables()).includes(TableName);
+	private async tableExist(tableName: string): Promise<boolean> {
+		return (await this.listTables()).includes(tableName);
 	}
 
 	//#region Service Dynamo Conversion Methods
@@ -176,9 +182,11 @@ export class NestDynamoService extends BaseNestService {
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async deleteTable(TableName: string): Promise<void> {
+	public async deleteTable(tableName: string): Promise<void> {
 		try {
-			await this.dynamoDB.send(new DeleteTableCommand({ TableName }));
+			await this.dynamoDB.send(
+				new DeleteTableCommand({ TableName: tableName })
+			);
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -215,10 +223,14 @@ export class NestDynamoService extends BaseNestService {
 								partitionKey: val.partitionKey,
 								sortKey: val.sortKey,
 							}),
-							Projection: {
-								NonKeyAttributes: val.projection.attributes,
-								ProjectionType: val.projection.type,
-							},
+							Projection:
+								typeof val.projection == "string"
+									? { ProjectionType: val.projection }
+									: {
+											NonKeyAttributes:
+												val.projection.attributes,
+											ProjectionType: val.projection.type,
+									  },
 						};
 					});
 				LSIs = Object.entries(props.indexes)
@@ -234,10 +246,14 @@ export class NestDynamoService extends BaseNestService {
 								partitionKey: val.partitionKey,
 								sortKey: val.sortKey,
 							}),
-							Projection: {
-								NonKeyAttributes: val.projection.attributes,
-								ProjectionType: val.projection.type,
-							},
+							Projection:
+								typeof val.projection == "string"
+									? { ProjectionType: val.projection }
+									: {
+											NonKeyAttributes:
+												val.projection.attributes,
+											ProjectionType: val.projection.type,
+									  },
 						};
 					});
 			}
@@ -246,27 +262,36 @@ export class NestDynamoService extends BaseNestService {
 				AttributeDefinitions,
 				KeySchema,
 				BillingMode,
-				ProvisionedThroughput: {
-					ReadCapacityUnits: props.RCU,
-					WriteCapacityUnits: props.WCU,
-				},
 				GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
 				LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
 			});
-			await this.dynamoDB.send(
-				new CreateTableCommand({
-					TableName: props.name,
-					AttributeDefinitions,
-					KeySchema,
-					BillingMode,
-					ProvisionedThroughput: {
-						ReadCapacityUnits: props.RCU,
-						WriteCapacityUnits: props.WCU,
-					},
-					GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
-					LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
-				})
-			);
+			if (props.billing == "PAY_PER_REQUEST") {
+				await this.dynamoDB.send(
+					new CreateTableCommand({
+						TableName: props.name,
+						AttributeDefinitions,
+						KeySchema,
+						BillingMode,
+						GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
+						LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
+					})
+				);
+			} else {
+				await this.dynamoDB.send(
+					new CreateTableCommand({
+						TableName: props.name,
+						AttributeDefinitions,
+						KeySchema,
+						BillingMode,
+						ProvisionedThroughput: {
+							ReadCapacityUnits: props.RCU,
+							WriteCapacityUnits: props.WCU,
+						},
+						GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
+						LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
+					})
+				);
+			}
 			return;
 		} catch (err) {
 			throw this.errorHandler(err);
@@ -296,10 +321,10 @@ export class NestDynamoService extends BaseNestService {
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Hybrid, State.Online)
-	async listItems(TableName: string): Promise<DynamoDBMap[]> {
+	async listItems(tableName: string): Promise<DynamoDBMap[]> {
 		try {
 			const response = await this.dynamoDB.send(
-				new ScanCommand({ TableName })
+				new ScanCommand({ TableName: tableName })
 			);
 
 			const items: { [key: string]: any }[] = [];
@@ -323,19 +348,19 @@ export class NestDynamoService extends BaseNestService {
 	//#region Public Methods
 	/**
 	 * Get item from Table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
 	 * @param  {string} TableName - Table to retrieve the item
 	 * @param  {Key} key - Key to identify the Item being retrieved
 	 * @param  {GetRequestOptions} options? - Optional request options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Hybrid, State.Online)
-	// public async get<TReturn extends RegularItem = any, TProps = any>(Type)
+	// public async get<TReturn extends RegularItem = any, TProps = any>(type)
 	public async get<TReturn extends RegularItem = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps> &
+			type: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			accessPattern: string;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -349,8 +374,8 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async get<TReturn extends RegularItem = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps>;
-			TableName: string;
+			type: DynamoEntityConstructor<TReturn, TProps>;
+			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -364,9 +389,9 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async get<TReturn extends RegularItem = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps> &
+			type: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			key?: Key;
 			accessPattern?: string;
 			placeholderValues?: DynamoDBMap;
@@ -379,7 +404,13 @@ export class NestDynamoService extends BaseNestService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}> {
-		let { TableName, Type, accessPattern, key, placeholderValues } = props;
+		let {
+			tableName: TableName,
+			type,
+			accessPattern,
+			key,
+			placeholderValues,
+		} = props;
 		try {
 			let accessProps: AccessProperties;
 
@@ -390,7 +421,7 @@ export class NestDynamoService extends BaseNestService {
 				);
 				key = accessProps.key;
 			} else if (accessPattern) {
-				key = this.getAccessPatterns({ Type, accessPattern });
+				key = this.getAccessPatterns({ type, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -436,17 +467,18 @@ export class NestDynamoService extends BaseNestService {
 				}
 				rawData = result;
 				// Account for last evaluated Key
-				this.cacheService?.add({
+				await this.cache({
 					key,
 					value: result,
-					duration: options?.cache?.duration,
+					tableName: TableName,
+					cache: options?.cache,
 				});
 			}
 
 			if (rawData && rawData.length) {
 				return {
 					data: rawData.map((val) => {
-						return new Type(
+						return new type(
 							this.tables[TableName].toEntityInterface(
 								Conversion.itemToValueObject(
 									val as {
@@ -467,20 +499,54 @@ export class NestDynamoService extends BaseNestService {
 				};
 			}
 			throw new ItemNotFoundError();
-			// return this.table[TableName].get<T>(Type, key);
+			// return this.table[TableName].get<T>(type, key);
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
 	}
+
+	public async cache(props: {
+		key: Key;
+		tableName: string;
+		value: {
+			[key: string]: AttributeValue;
+		}[];
+		cache?: boolean | { duration?: number };
+	}) {
+		const { key, value, cache, tableName } = props;
+		const shouldCache = new Boolean(
+			cache ?? this.tables[tableName].structure.cache ?? this.props.cache
+		);
+		if (!shouldCache) {
+			return null;
+		}
+		const cacheObject: { duration?: number } = merge(
+			{},
+			isObject(this.props.cache) || {},
+			isObject(this.tables[tableName].structure.cache) || {},
+			isObject(cache) || {}
+		);
+		if (!this.cacheService) {
+			this.logger?.warn("CacheService has not been initialized");
+		}
+		return this.cacheService?.add({
+			key,
+			value,
+			duration: cacheObject.duration,
+		});
+	}
+
 	/**
 	 * Get all items in a Table
 	 * @param  {string} TableName - Table from items to be retrived from
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async scan(TableName: string): Promise<any> {
+	public async scan(tableName: string): Promise<any> {
 		try {
-			return this.dynamoDB.send(new ScanCommand({ TableName }));
+			return this.dynamoDB.send(
+				new ScanCommand({ TableName: tableName })
+			);
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -489,7 +555,7 @@ export class NestDynamoService extends BaseNestService {
 	// Decorator for Local Or Online Only, no Hybrid
 	/**
 	 * Put new Item in the table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
 	 * @param  {string} TableName - Table to put the item
 	 * @param  {T} item - Item to be put in the Table
 	 * @param  {PutRequestOptions} options? - Optional put options
@@ -498,8 +564,8 @@ export class NestDynamoService extends BaseNestService {
 	// @States(State.Local, State.Online)
 	public async put<TReturn extends RegularItem, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps>;
-			TableName: string;
+			type?: DynamoEntityConstructor<TReturn, TProps>;
+			tableName: string;
 			item: TReturn;
 		},
 		options?: PutRequestOptions
@@ -508,7 +574,7 @@ export class NestDynamoService extends BaseNestService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { TableName, Type, item } = props;
+		const { tableName: TableName, type, item } = props;
 		// | Partial<T>
 		const Item: {
 			[key: string]: AttributeValue;
@@ -549,9 +615,9 @@ export class NestDynamoService extends BaseNestService {
 			const result = response.Attributes;
 			if (result) {
 				// If there was an Item before in place
-				if (Type) {
+				if (type) {
 					return {
-						data: new Type(
+						data: new type(
 							this.tables[TableName].toEntityInterface(
 								Conversion.itemToValueObject(
 									result as { [key: string]: AttributeValue }
@@ -579,7 +645,7 @@ export class NestDynamoService extends BaseNestService {
 	// placeholders for the partitionkey should be available
 	/**
 	 * Update item in table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
 	 * @param  {string} TableName - Table that will have Item updated
 	 * @param  {T} item - The modified Item used to update the item
 	 * @param  {UpdateRequestOptions} options? - Optional update options
@@ -588,8 +654,8 @@ export class NestDynamoService extends BaseNestService {
 	// @States(State.Local, State.Online)
 	public async update<TReturn extends RegularItem = any, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps>;
-			TableName: string;
+			type?: DynamoEntityConstructor<TReturn, TProps>;
+			tableName: string;
 			item: TReturn;
 		},
 		options?: UpdateRequestOptions
@@ -598,7 +664,7 @@ export class NestDynamoService extends BaseNestService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { TableName, Type, item } = props;
+		const { tableName: TableName, type, item } = props;
 		// compare update times
 		// UpdatedAt should be a base attribute that then can be assigned to a different Attribute
 
@@ -669,9 +735,9 @@ export class NestDynamoService extends BaseNestService {
 				}
 				// this is not the best example for this
 				if (response.Attributes) {
-					if (Type) {
+					if (type) {
 						return {
-							data: new Type(
+							data: new type(
 								this.tables[TableName].toEntityInterface(
 									Conversion.itemToValueObject(
 										response.Attributes as {
@@ -700,7 +766,7 @@ export class NestDynamoService extends BaseNestService {
 
 	/**
 	 * Delete item in table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
 	 * @param  {string} TableName - Table that will have Item deleted
 	 * @param  {T} item - The modified Item used to update the item
 	 * @param  {DeleteRequestOptions} options? - Optional delete options
@@ -709,9 +775,9 @@ export class NestDynamoService extends BaseNestService {
 	// @States(State.Local, State.Online)
 	public async delete<TReturn extends RegularItem = any, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps> &
+			type?: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -723,9 +789,9 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async delete<TReturn extends RegularItem = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps> &
+			type: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			accessPattern: string;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -737,9 +803,9 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async delete<TReturn extends RegularItem = any, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps> &
+			type?: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			key?: Key;
 			accessPattern?: string;
 			placeholderValues?: DynamoDBMap;
@@ -750,12 +816,17 @@ export class NestDynamoService extends BaseNestService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { TableName, Type, key, accessPattern, placeholderValues } =
-			props;
+		const {
+			tableName: TableName,
+			type,
+			key,
+			accessPattern,
+			placeholderValues,
+		} = props;
 		try {
 			let accessProps: AccessProperties;
-			if (Type && accessPattern) {
-				const key = this.getAccessPatterns({ Type, accessPattern });
+			if (type && accessPattern) {
+				const key = this.getAccessPatterns({ type, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -810,9 +881,9 @@ export class NestDynamoService extends BaseNestService {
 			}
 			// this is not the best example for this
 			if (response.Attributes) {
-				if (Type) {
+				if (type) {
 					return {
-						data: new Type(
+						data: new type(
 							this.tables[TableName].toEntityInterface(
 								Conversion.itemToValueObject(
 									response.Attributes as {
@@ -837,11 +908,11 @@ export class NestDynamoService extends BaseNestService {
 	}
 
 	private getAccessPatterns(props: {
-		Type: AccessPatternsClass;
+		type: AccessPatternsClass;
 		accessPattern: string;
 	}): Key {
-		const { Type, accessPattern } = props;
-		const key = Type.accessPatterns?.[accessPattern];
+		const { type, accessPattern } = props;
+		const key = type.accessPatterns?.[accessPattern];
 		if (!key) {
 			throw new Error("Access Path does not exist");
 		}

@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		"module": "CommonJS",
+		"strict": true,
+		"removeComments": true,
+		"emitDecoratorMetadata": true,
+		"moduleResolution": "node",
+		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true,
+		"noImplicitReturns": true,
+		"esModuleInterop": true,
+		"importHelpers": true,
+		"allowJs": true,"skipLibCheck": true,
+		"target": "es6",
+		"types": ["node"],
+		"lib": ["ES2020"],
+		"outDir": "./bin",
+		"pretty": true,
+		"baseUrl": "./",
+		"incremental": true
+	},
+	"exclude": [
+		"node_modules",
+		"gulpfile.js"
+	]
+}

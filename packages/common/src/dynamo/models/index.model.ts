@@ -1,15 +1,18 @@
 import { IndexKeyDefinition, PrimaryKeyDefinition } from "./key.model";
 
-export enum INDEX_TYPE {
+export enum IndexType {
 	GSI = "GSI",
 	LSI = "LSI",
 }
 
 export interface IndexDefinition extends IndexKeyDefinition {
-	projection: {
-		type: "KEYS_ONLY" | "INCLUDE" | "ALL";
-		attributes?: string[];
-	};
-	RCU: number;
-	WCU: number;
+	projection:
+		| "KEYS_ONLY"
+		| "ALL"
+		| {
+				type: "INCLUDE";
+				attributes: string[];
+		  };
+	RCU?: number;
+	WCU?: number;
 }

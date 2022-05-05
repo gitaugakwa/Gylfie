@@ -1,6 +1,11 @@
 # Change Log - @gylfie/backend
 
-This log was last generated on Fri, 22 Apr 2022 08:33:47 GMT and should not be manually modified.
+This log was last generated on Thu, 05 May 2022 16:03:00 GMT and should not be manually modified.
+
+## 0.0.4
+Thu, 05 May 2022 16:03:00 GMT
+
+_Version update only_
 
 ## 0.0.3
 Fri, 22 Apr 2022 08:33:47 GMT

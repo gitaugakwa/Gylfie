@@ -6,9 +6,11 @@ import { DynamoServiceModuleProps } from "./dynamo";
 import { CognitoServiceModuleProps } from "./cognito";
 import { S3ServiceModuleProps } from "./s3";
 import { AuthenticationServiceModuleProps } from "./authentication";
+import { CacheServiceModuleProps } from "./cache";
 
 export interface GylfieModuleProps extends BaseModuleProps {
 	dynamo?: DynamoServiceModuleProps;
+	cache?: CacheServiceModuleProps;
 	cognito?: CognitoServiceModuleProps;
 	s3?: S3ServiceModuleProps;
 	logger?: LoggerServiceModuleProps;
@@ -31,6 +33,7 @@ export class GylfieModule extends BaseModule {
 				s3,
 				lambda,
 				authentication,
+				cache,
 				...baseModuleProps
 			} = props;
 			this.mergeEnv();
@@ -39,6 +42,24 @@ export class GylfieModule extends BaseModule {
 			const baseProps = this.parseBaseProps(baseModuleProps);
 			const modulePromises: Promise<void>[] = [];
 			// console.log("Pre dynamo");
+			if (cache) {
+				// console.log("Inside cache");
+				modulePromises.push(
+					new Promise(async (res) => {
+						modules["cache"] = (
+							await import("./cache")
+						).CacheModule.forRoot(cache, baseProps);
+						if (modules["cache"].providers) {
+							providers.push(...modules["cache"].providers);
+						}
+						if (modules["cache"].controllers) {
+							controllers.push(...modules["cache"].controllers);
+						}
+						res();
+						return;
+					})
+				);
+			}
 			if (dynamo) {
 				// console.log("Inside dynamo");
 				modulePromises.push(

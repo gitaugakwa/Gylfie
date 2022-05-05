@@ -2,7 +2,7 @@ import { AttributeValue, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { Injectable, Inject, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { BaseService, BaseServiceProps, State } from "@gylfie/common";
-import { CACHE_PROPS } from "../../modules/dynamo/dynamo.constants";
+import { CACHE_PROPS } from "../../modules/cache/cache.constants";
 import { NestLoggerService } from "../logger";
 import Hash from "object-hash";
 import { Key } from "@gylfie/common";
@@ -15,7 +15,7 @@ export interface CacheObject<TValue> {
 }
 
 export interface NestCacheServiceProps extends BaseServiceProps {
-	duration?: number;
+	cache?: boolean | { duration?: number };
 }
 
 export interface CacheGetProps {
@@ -67,11 +67,17 @@ export class NestCacheService extends BaseNestService {
 	}): {
 		[key: string]: AttributeValue;
 	}[] {
-		const { key, value, duration } = props;
+		const { key, value } = props;
 		const hash = Hash(key);
+		let { duration } = props;
+		if (this.props?.cache) {
+			if (typeof this.props.cache == "object") {
+				duration = this.props.cache.duration;
+			}
+		}
 		this._cache[hash] = {
 			value,
-			duration: duration ?? this.props.duration ?? 300000, // 5 min
+			duration: duration ?? 300000, // 5 min
 			creationDateTime: Date.now(),
 		};
 		return this._cache[hash].value;

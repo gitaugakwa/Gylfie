@@ -1,0 +1,140 @@
+// Update the current gylfie installation
+
+import { Command, OptionValues } from "commander";
+import { ICommand, GylfieCommand } from "../command";
+import { IOption, PackageOption } from "../../options";
+import { createPromptModule, Answers } from "inquirer";
+import {
+	Context,
+	ResourceDefinition,
+	ResourceType,
+	GylfieService,
+	GylfieFunction,
+	GylfieLayer,
+	GylfieMobileApp,
+	GylfieDatabase,
+} from "../../config";
+
+export interface IUpdateCommand {
+	options?: IOption[];
+}
+
+export class UpdateCommand extends GylfieCommand implements ICommand {
+	constructor(props?: IUpdateCommand) {
+		super();
+		this.name = "Update Command";
+		this.flag = "update";
+		this.description = "Update resource of [type]";
+		// this.alias = "initialize";
+		this.options = props?.options;
+		this.properties = [{ name: "type" }, { name: "path" }];
+	}
+	name?: string | undefined;
+	description?: string | undefined;
+	flag: string;
+	alias?: string | undefined;
+	options?: IOption[];
+	properties?:
+		| {
+				name: string;
+				required?: boolean | undefined;
+		  }[]
+		| undefined;
+
+	public static async update(
+		type?: ResourceType,
+		path?: any,
+		options?: OptionValues,
+		command?: Command
+	) {
+		const context = this.getContext(path);
+		const { cwd, configPath } = context;
+
+		try {
+			if (context.configExists()) {
+				await this.updatePrompt(context, options, type);
+
+				return;
+			}
+			this.uninitialized();
+			return;
+		} catch (err) {
+			// switch (err.code) {
+			// 	case "ENOENT": {
+			// 		// file not found - does not exist
+			// 	}
+			// 	default: {
+			// 	}
+			// }
+			console.log("Unusual Error encountered during update");
+			console.log(err);
+		}
+	}
+
+	private static async updatePrompt(
+		context: Context,
+		options?: OptionValues,
+		type?: ResourceType
+	) {
+		const prompt = createPromptModule();
+		const answers = await prompt(
+			[
+				{
+					type: "list",
+					name: "type",
+					message: "Type of instance being updated",
+					choices: Object.keys(ResourceDefinition),
+					default: "function",
+				},
+			],
+			{ ...options, type }
+		);
+
+		// const { config } = context;
+
+		// if (
+		// 	config.resources &&
+		// 	config.resources[answers.name] &&
+		// 	!options?.force
+		// ) {
+		// 	console.log("Resource already exists");
+		// 	return;
+		// }
+
+		const request = {
+			context,
+			options,
+		};
+
+		switch (answers.type as ResourceType) {
+			// 	case "service": {
+			// 		await new GylfieService().update(request);
+			// 		return;
+			// 	}
+			// 	case "function": {
+			// 		await new GylfieFunction().update(request);
+			// 		return;
+			// 	}
+			// 	case "layer": {
+			// 		await new GylfieLayer().update(request);
+			// 		return;
+			// 	}
+			case "database": {
+				await new GylfieDatabase().update(request);
+				return;
+			}
+			// 	case "mobile": {
+			// 		await new GylfieMobileApp().update(request);
+			// 		return;
+			// 	}
+			// 	default: {
+			// 		console.log("Unsupported Type", answers.type);
+			// 	}
+		}
+		return;
+	}
+
+	public async action(...args: any[]) {
+		UpdateCommand.update(...args);
+	}
+}

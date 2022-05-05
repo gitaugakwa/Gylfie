@@ -1,9 +1,9 @@
-import { Condition, INDEX_TYPE } from "../models";
+import { Condition, IndexType } from "../models";
 import { Duration } from "luxon";
 import { ClassDecorator } from "../../base/decorators";
 
 export interface IndexValue {
-	type: INDEX_TYPE;
+	type: IndexType;
 	partitionKey: string;
 	sortKey?: string | number;
 }

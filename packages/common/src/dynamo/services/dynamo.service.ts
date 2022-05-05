@@ -61,7 +61,7 @@ export interface DynamoServiceProps extends BaseServiceProps {
 	tables?: TableProps[];
 	region?: string;
 	port?: number;
-	cache?: CacheServiceProps;
+	cache?: boolean | { duration?: number };
 }
 
 export interface CreateTableProps extends TableProps {
@@ -175,10 +175,14 @@ export class DynamoService extends BaseService {
 								partitionKey: val.partitionKey,
 								sortKey: val.sortKey,
 							}),
-							Projection: {
-								NonKeyAttributes: val.projection.attributes,
-								ProjectionType: val.projection.type,
-							},
+							Projection:
+								typeof val.projection == "string"
+									? { ProjectionType: val.projection }
+									: {
+											NonKeyAttributes:
+												val.projection.attributes,
+											ProjectionType: val.projection.type,
+									  },
 						};
 					});
 				LSIs = Object.entries(props.indexes)
@@ -194,10 +198,14 @@ export class DynamoService extends BaseService {
 								partitionKey: val.partitionKey,
 								sortKey: val.sortKey,
 							}),
-							Projection: {
-								NonKeyAttributes: val.projection.attributes,
-								ProjectionType: val.projection.type,
-							},
+							Projection:
+								typeof val.projection == "string"
+									? { ProjectionType: val.projection }
+									: {
+											NonKeyAttributes:
+												val.projection.attributes,
+											ProjectionType: val.projection.type,
+									  },
 						};
 					});
 			}
