@@ -15,7 +15,7 @@ phases:
             # - "printenv"
             - "aws --version"
             - "npm -v"
-            - "npm install -g pnpm @microsoft/rush"
+            - "npm install -g pnpm@'^6.x.x' @microsoft/rush"
     pre_build:
         commands:
             - "rush update --no-link --recheck --purge"

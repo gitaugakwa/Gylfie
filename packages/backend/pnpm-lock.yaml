@@ -1,9 +1,20 @@
-lockfileVersion: 5.3
+lockfileVersion: 5.4
 
 specifiers:
-    "@gylfie/common": link:..\common
-    "@gylfie/common": link:..\common
+  '@aws-sdk/util-dynamodb': ^3.85.0
 
 dependencies:
-    "@gylfie/common": link:../common
-    "@gylfie/common": link:../common
+  '@aws-sdk/util-dynamodb': 3.85.0
+
+packages:
+
+  /@aws-sdk/util-dynamodb/3.85.0:
+    resolution: {integrity: sha512-ILG4WcFQ+3GNSrqR+rs1NiaJpSxnHjrIT279K/Ri+MqFqvkHzlNqIIn+NbRj1/5DGUVMD/VlpdREqWX8F3xq9A==}
+    engines: {node: '>= 12.0.0'}
+    dependencies:
+      tslib: 2.4.0
+    dev: false
+
+  /tslib/2.4.0:
+    resolution: {integrity: sha512-d6xOpEDfsi2CZVlPQzGeux8XMwLT9hssAsaPYExaQMuYskwb+x1x7J371tWlbBdWHroy99KnVB6qIkUbs5X3UQ==}
+    dev: false

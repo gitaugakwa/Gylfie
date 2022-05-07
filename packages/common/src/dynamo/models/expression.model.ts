@@ -1,6 +1,8 @@
 import { AttributeValue } from "@aws-sdk/client-dynamodb";
+import { convertToAttr } from "@aws-sdk/util-dynamodb";
 import { merge } from "lodash";
 import { Conversion } from "./conversion.model";
+import { DynamoDBValue } from "./types";
 
 export interface ExpressionProps {
 	attributeValues?: {
@@ -53,13 +55,13 @@ export class Expression {
 		return this.attributeNames;
 	}
 
-	setValue(value: AttributeValue, valueHolder?: string) {
+	setValue(value: DynamoDBValue, valueHolder?: string) {
 		if (valueHolder) {
 			valueHolder = this.getNextValueHolder(valueHolder);
 		} else {
 			valueHolder = this.getValueHolder();
 		}
-		this.attributeValues[valueHolder] = value;
+		this.attributeValues[valueHolder] = convertToAttr(value);
 		return valueHolder;
 	}
 

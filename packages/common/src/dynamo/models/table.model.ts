@@ -6,11 +6,7 @@ import {
 } from "./key.model";
 import { EntityProps, IndexValue } from "../decorators";
 import { IndexType } from "./index.model";
-import {
-	DynamoEntityConstructor,
-	EntityInterfaceProps,
-	RegularItem,
-} from "./item.model";
+import { DynamoEntityConstructor, EntityInterfaceProps } from "./entity.model";
 import { DynamoDBMap, DynamoDBValue } from "./types";
 import { Conversion } from "./conversion.model";
 import { Condition } from "./condition.model";

@@ -27,7 +27,6 @@ import {
 	UpdateRequestOptions,
 	PutRequestOptions,
 	GetRequestOptions,
-	RegularItem,
 	DynamoEntityConstructor,
 	DynamoDBMap,
 	TableProps,
@@ -36,6 +35,7 @@ import {
 	AccessProperties,
 	DeleteRequestOptions,
 	Condition,
+	isEntity,
 } from "../models";
 import {
 	InternalServerError,
@@ -52,10 +52,11 @@ import {
 	ProvisionedThroughputExceededError,
 	TransactionConflictError,
 } from "../errors";
-import { AccessPatternsClass } from "../decorators";
-import { capitalize, merge } from "lodash";
+import { AccessPatternsClass, Entity } from "../decorators";
+import { capitalize, map, merge } from "lodash";
 import { CacheService, CacheServiceProps } from "./cache.service";
 import { LOCAL_DYNAMO_PORT } from "../constants";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 export interface DynamoServiceProps extends BaseServiceProps {
 	tables?: TableProps[];
@@ -120,8 +121,8 @@ export class DynamoService extends BaseService {
 
 	//#endregion
 
-	private async tableExist(TableName: string): Promise<boolean> {
-		return (await this.listTables()).includes(TableName);
+	private async tableExist(tableName: string): Promise<boolean> {
+		return (await this.listTables()).includes(tableName);
 	}
 
 	//#region Service Dynamo Conversion Methods
@@ -136,9 +137,11 @@ export class DynamoService extends BaseService {
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async deleteTable(TableName: string): Promise<void> {
+	public async deleteTable(tableName: string): Promise<void> {
 		try {
-			await this.dynamoDB.send(new DeleteTableCommand({ TableName }));
+			await this.dynamoDB.send(
+				new DeleteTableCommand({ TableName: tableName })
+			);
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -177,11 +180,12 @@ export class DynamoService extends BaseService {
 							}),
 							Projection:
 								typeof val.projection == "string"
-									? { ProjectionType: val.projection }
+									? { Projectionentity: val.projection }
 									: {
 											NonKeyAttributes:
 												val.projection.attributes,
-											ProjectionType: val.projection.type,
+											Projectionentity:
+												val.projection.type,
 									  },
 						};
 					});
@@ -200,17 +204,18 @@ export class DynamoService extends BaseService {
 							}),
 							Projection:
 								typeof val.projection == "string"
-									? { ProjectionType: val.projection }
+									? { Projectionentity: val.projection }
 									: {
 											NonKeyAttributes:
 												val.projection.attributes,
-											ProjectionType: val.projection.type,
+											Projectionentity:
+												val.projection.type,
 									  },
 						};
 					});
 			}
 			console.log({
-				TableName: props.name,
+				tableName: props.name,
 				AttributeDefinitions,
 				KeySchema,
 				BillingMode,
@@ -264,17 +269,17 @@ export class DynamoService extends BaseService {
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Hybrid, State.Online)
-	async listItems(TableName: string): Promise<DynamoDBMap[]> {
+	async listItems(tableName: string): Promise<DynamoDBMap[]> {
 		try {
 			const response = await this.dynamoDB.send(
-				new ScanCommand({ TableName })
+				new ScanCommand({ TableName: tableName })
 			);
 
 			const items: { [key: string]: any }[] = [];
 
 			if (response.Items) {
 				response.Items.forEach((value, i) => {
-					items[i] = Conversion.itemToValueObject(
+					items[i] = unmarshall(
 						value as {
 							[key: string]: AttributeValue;
 						}
@@ -291,19 +296,19 @@ export class DynamoService extends BaseService {
 	//#region Public Methods
 	/**
 	 * Get item from Table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table to retrieve the item
 	 * @param  {Key} key - Key to identify the Item being retrieved
 	 * @param  {GetRequestOptions} options? - Optional request options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Hybrid, State.Online)
-	// public async get<TReturn extends RegularItem = any, TProps = any>(Type)
-	public async get<TReturn extends RegularItem = any, TProps = any>(
+	// public async get<TReturn = any, TProps = any>(entity)
+	public async get<TReturn = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps> &
+			entity: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			accessPattern: string;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -315,10 +320,10 @@ export class DynamoService extends BaseService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}>;
-	public async get<TReturn extends RegularItem = any, TProps = any>(
+	public async get<TReturn = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps>;
-			TableName: string;
+			entity: DynamoEntityConstructor<TReturn, TProps>;
+			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -330,11 +335,11 @@ export class DynamoService extends BaseService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}>;
-	public async get<TReturn extends RegularItem = any, TProps = any>(
+	public async get<TReturn = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps> &
+			entity: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			key?: Key;
 			accessPattern?: string;
 			placeholderValues?: DynamoDBMap;
@@ -347,7 +352,13 @@ export class DynamoService extends BaseService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}> {
-		let { TableName, Type, accessPattern, key, placeholderValues } = props;
+		let {
+			tableName: TableName,
+			entity,
+			accessPattern,
+			key,
+			placeholderValues,
+		} = props;
 		try {
 			let accessProps: AccessProperties;
 
@@ -358,7 +369,7 @@ export class DynamoService extends BaseService {
 				);
 				key = accessProps.key;
 			} else if (accessPattern) {
-				key = this.getAccessPatterns({ Type, accessPattern });
+				key = this.getAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -389,9 +400,7 @@ export class DynamoService extends BaseService {
 						Limit: options?.limit,
 						ConsistentRead: options?.consistentRead,
 						ExclusiveStartKey: options?.exclusiveStartKey
-							? Conversion.valueToItemObject(
-									options?.exclusiveStartKey
-							  )
+							? marshall(options?.exclusiveStartKey)
 							: undefined,
 						ReturnConsumedCapacity:
 							options?.returnConsumedCapacity ?? "TOTAL",
@@ -412,30 +421,33 @@ export class DynamoService extends BaseService {
 			}
 
 			if (rawData && rawData.length) {
-				return {
-					data: rawData.map((val) => {
-						return new Type(
-							this.tables[TableName].toEntityInterface(
-								Conversion.itemToValueObject(
-									val as {
-										[key: string]: AttributeValue;
-									}
-								)
+				if (!isEntity(entity)) {
+					throw new Error("entity provided is not Entity");
+				}
+				const entityIsEntity = entity;
+				const data = map(rawData, (val) => {
+					return new entityIsEntity(
+						this.tables[TableName].toEntityInterface(
+							unmarshall(
+								val as {
+									[key: string]: AttributeValue;
+								}
 							)
-						);
-					}),
+						)
+					) as unknown as TReturn;
+				});
+				return {
+					data,
 					cacheHit: response ? false : true,
 					consumedCapacity: response?.ConsumedCapacity,
 					count: response?.Count,
 					lastEvaluatedKey: response?.LastEvaluatedKey
-						? Conversion.itemToValueObject(
-								response.LastEvaluatedKey
-						  )
+						? unmarshall(response.LastEvaluatedKey)
 						: undefined,
 				};
 			}
 			throw new ItemNotFoundError();
-			// return this.table[TableName].get<T>(Type, key);
+			// return this.table[TableName].get<T>(entity, key);
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -446,9 +458,11 @@ export class DynamoService extends BaseService {
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async scan(TableName: string): Promise<any> {
+	public async scan(tableName: string): Promise<any> {
 		try {
-			return this.dynamoDB.send(new ScanCommand({ TableName }));
+			return this.dynamoDB.send(
+				new ScanCommand({ TableName: tableName })
+			);
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -457,17 +471,17 @@ export class DynamoService extends BaseService {
 	// Decorator for Local Or Online Only, no Hybrid
 	/**
 	 * Put new Item in the table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table to put the item
 	 * @param  {T} item - Item to be put in the Table
 	 * @param  {PutRequestOptions} options? - Optional put options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async put<TReturn extends RegularItem, TProps = any>(
+	public async put<TReturn, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps>;
-			TableName: string;
+			entity?: DynamoEntityConstructor<TReturn, TProps>;
+			tableName: string;
 			item: TReturn;
 		},
 		options?: PutRequestOptions
@@ -476,13 +490,11 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { TableName, Type, item } = props;
+		const { tableName: TableName, entity, item } = props;
 		// | Partial<T>
 		const Item: {
 			[key: string]: AttributeValue;
-		} = Conversion.valueToItemObject(
-			this.tables[TableName].toDynamoMap(item)
-		);
+		} = marshall(this.tables[TableName].toDynamoMap(item));
 
 		const {
 			// ExpressionAttributeValues,
@@ -517,15 +529,19 @@ export class DynamoService extends BaseService {
 			const result = response.Attributes;
 			if (result) {
 				// If there was an Item before in place
-				if (Type) {
+				if (entity) {
+					if (!isEntity(entity)) {
+						throw new Error("entity provided is not Entity");
+					}
+					const entityIsEntity = entity;
 					return {
-						data: new Type(
+						data: new entityIsEntity(
 							this.tables[TableName].toEntityInterface(
-								Conversion.itemToValueObject(
+								unmarshall(
 									result as { [key: string]: AttributeValue }
 								)
 							)
-						),
+						) as unknown as TReturn,
 						consumedCapacity: response.ConsumedCapacity,
 						itemCollectionMetrics: response.ItemCollectionMetrics,
 					};
@@ -547,17 +563,17 @@ export class DynamoService extends BaseService {
 	// placeholders for the partitionkey should be available
 	/**
 	 * Update item in table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table that will have Item updated
 	 * @param  {T} item - The modified Item used to update the item
 	 * @param  {UpdateRequestOptions} options? - Optional update options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async update<TReturn extends RegularItem = any, TProps = any>(
+	public async update<TReturn = any, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps>;
-			TableName: string;
+			entity?: DynamoEntityConstructor<TReturn, TProps>;
+			tableName: string;
 			item: TReturn;
 		},
 		options?: UpdateRequestOptions
@@ -566,7 +582,7 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { TableName, Type, item } = props;
+		const { tableName: TableName, entity, item } = props;
 		// compare update times
 		// UpdatedAt should be a base attribute that then can be assigned to a different Attribute
 
@@ -587,7 +603,7 @@ export class DynamoService extends BaseService {
 			);
 			const Key: {
 				[key: string]: AttributeValue;
-			} = Conversion.valueToItemObject(retrievedKey);
+			} = marshall(retrievedKey);
 
 			const updateMap = this.tables[TableName].toUpdateMap(item);
 
@@ -637,17 +653,21 @@ export class DynamoService extends BaseService {
 				}
 				// this is not the best example for this
 				if (response.Attributes) {
-					if (Type) {
+					if (entity) {
+						if (!isEntity(entity)) {
+							throw new Error("entity provided is not Entity");
+						}
+						const entityIsEntity = entity;
 						return {
-							data: new Type(
+							data: new entityIsEntity(
 								this.tables[TableName].toEntityInterface(
-									Conversion.itemToValueObject(
+									unmarshall(
 										response.Attributes as {
 											[key: string]: AttributeValue;
 										}
 									)
 								)
-							),
+							) as unknown as TReturn,
 							consumedCapacity: response.ConsumedCapacity,
 							itemCollectionMetrics:
 								response.ItemCollectionMetrics,
@@ -668,18 +688,18 @@ export class DynamoService extends BaseService {
 
 	/**
 	 * Delete item in table
-	 * @param  {DynamoEntityConstructor<T>} Type - Type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table that will have Item deleted
 	 * @param  {T} item - The modified Item used to update the item
 	 * @param  {DeleteRequestOptions} options? - Optional delete options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async delete<TReturn extends RegularItem = any, TProps = any>(
+	public async delete<TReturn = any, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps> &
+			entity?: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -689,11 +709,11 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}>;
-	public async delete<TReturn extends RegularItem = any, TProps = any>(
+	public async delete<TReturn = any, TProps = any>(
 		props: {
-			Type: DynamoEntityConstructor<TReturn, TProps> &
+			entity: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			accessPattern: string;
 			placeholderValues?: DynamoDBMap;
 		},
@@ -703,11 +723,11 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}>;
-	public async delete<TReturn extends RegularItem = any, TProps = any>(
+	public async delete<TReturn = any, TProps = any>(
 		props: {
-			Type?: DynamoEntityConstructor<TReturn, TProps> &
+			entity?: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
-			TableName: string;
+			tableName: string;
 			key?: Key;
 			accessPattern?: string;
 			placeholderValues?: DynamoDBMap;
@@ -718,12 +738,17 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { TableName, Type, key, accessPattern, placeholderValues } =
-			props;
+		const {
+			tableName: TableName,
+			entity,
+			key,
+			accessPattern,
+			placeholderValues,
+		} = props;
 		try {
 			let accessProps: AccessProperties;
-			if (Type && accessPattern) {
-				const key = this.getAccessPatterns({ Type, accessPattern });
+			if (entity && accessPattern) {
+				const key = this.getAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -747,9 +772,7 @@ export class DynamoService extends BaseService {
 				);
 			}
 
-			const Key = Conversion.valueToItemObject(
-				accessProps.key as DynamoDBMap
-			);
+			const Key = marshall(accessProps.key as DynamoDBMap);
 
 			const {
 				ExpressionAttributeValues,
@@ -778,17 +801,21 @@ export class DynamoService extends BaseService {
 			}
 			// this is not the best example for this
 			if (response.Attributes) {
-				if (Type) {
+				if (entity) {
+					if (!isEntity(entity)) {
+						throw new Error("entity provided is not Entity");
+					}
+					const entityIsEntity = entity;
 					return {
-						data: new Type(
+						data: new entityIsEntity(
 							this.tables[TableName].toEntityInterface(
-								Conversion.itemToValueObject(
+								unmarshall(
 									response.Attributes as {
 										[key: string]: AttributeValue;
 									}
 								)
 							)
-						),
+						) as unknown as TReturn,
 						consumedCapacity: response.ConsumedCapacity,
 						itemCollectionMetrics: response.ItemCollectionMetrics,
 					};
@@ -805,11 +832,11 @@ export class DynamoService extends BaseService {
 	}
 
 	private getAccessPatterns(props: {
-		Type: AccessPatternsClass;
+		entity: AccessPatternsClass;
 		accessPattern: string;
 	}): Key {
-		const { Type, accessPattern } = props;
-		const key = Type.accessPatterns?.[accessPattern];
+		const { entity, accessPattern } = props;
+		const key = entity.accessPatterns?.[accessPattern];
 		if (!key) {
 			throw new Error("Access Path does not exist");
 		}

@@ -46,20 +46,22 @@ import {
 	Key,
 	ProvisionedThroughputExceededError,
 	PutRequestOptions,
-	RegularItem,
 	Table,
 	TableProps,
 	TransactionConflictError,
 	UpdateRequestOptions,
 	LOCAL_DYNAMO_PORT,
+	isEntity,
 } from "@gylfie/common/lib/dynamo";
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { isObject, merge } from "lodash";
+import { isObject, map, merge } from "lodash";
 import { BaseNestService } from "../../base";
 import { DYNAMO_PROPS } from "../../modules/dynamo/dynamo.constants";
 import { NestLoggerService } from "../logger";
 import { NestCacheService, NestCacheServiceProps } from "../cache";
+import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
 export interface NestDynamoServiceProps extends DynamoServiceProps {
 	tables: TableProps[];
@@ -97,6 +99,7 @@ export type CreateTableProps = TableProps & {
 export class NestDynamoService extends BaseNestService {
 	public state: State;
 	public dynamoDB: DynamoDBClient;
+	public dynamoDBDocument: DynamoDBDocument;
 	private port: number;
 	public tables: { [key: string]: Table } = {};
 	constructor(
@@ -144,6 +147,7 @@ export class NestDynamoService extends BaseNestService {
 				credentials: props.credentials ?? fromEnv(),
 			});
 			this.state = State.Local;
+			this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
 			return;
 			// this.isLocalActive(this.port).then((active) => {
 			// 	if (active) {
@@ -161,6 +165,7 @@ export class NestDynamoService extends BaseNestService {
 			credentials: props.credentials ?? fromEnv(),
 		});
 		this.state = State.Online;
+		this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
 		return;
 	}
 
@@ -225,11 +230,12 @@ export class NestDynamoService extends BaseNestService {
 							}),
 							Projection:
 								typeof val.projection == "string"
-									? { ProjectionType: val.projection }
+									? { Projectionentity: val.projection }
 									: {
 											NonKeyAttributes:
 												val.projection.attributes,
-											ProjectionType: val.projection.type,
+											Projectionentity:
+												val.projection.type,
 									  },
 						};
 					});
@@ -248,11 +254,12 @@ export class NestDynamoService extends BaseNestService {
 							}),
 							Projection:
 								typeof val.projection == "string"
-									? { ProjectionType: val.projection }
+									? { Projectionentity: val.projection }
 									: {
 											NonKeyAttributes:
 												val.projection.attributes,
-											ProjectionType: val.projection.type,
+											Projectionentity:
+												val.projection.type,
 									  },
 						};
 					});
@@ -331,7 +338,7 @@ export class NestDynamoService extends BaseNestService {
 
 			if (response.Items) {
 				response.Items.forEach((value, i) => {
-					items[i] = Conversion.itemToValueObject(
+					items[i] = unmarshall(
 						value as {
 							[key: string]: AttributeValue;
 						}
@@ -348,17 +355,17 @@ export class NestDynamoService extends BaseNestService {
 	//#region Public Methods
 	/**
 	 * Get item from Table
-	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table to retrieve the item
 	 * @param  {Key} key - Key to identify the Item being retrieved
 	 * @param  {GetRequestOptions} options? - Optional request options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Hybrid, State.Online)
-	// public async get<TReturn extends RegularItem = any, TProps = any>(type)
-	public async get<TReturn extends RegularItem = any, TProps = any>(
+	// public async get<TReturn  = any, TProps = any>(entity)
+	public async get<TReturn = any, TProps = any>(
 		props: {
-			type: DynamoEntityConstructor<TReturn, TProps> &
+			entity: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
 			tableName: string;
 			accessPattern: string;
@@ -372,9 +379,9 @@ export class NestDynamoService extends BaseNestService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}>;
-	public async get<TReturn extends RegularItem = any, TProps = any>(
+	public async get<TReturn = any, TProps = any>(
 		props: {
-			type: DynamoEntityConstructor<TReturn, TProps>;
+			entity: DynamoEntityConstructor<TReturn, TProps>;
 			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
@@ -387,9 +394,9 @@ export class NestDynamoService extends BaseNestService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}>;
-	public async get<TReturn extends RegularItem = any, TProps = any>(
+	public async get<TReturn = any, TProps = any>(
 		props: {
-			type: DynamoEntityConstructor<TReturn, TProps> &
+			entity: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
 			tableName: string;
 			key?: Key;
@@ -406,7 +413,7 @@ export class NestDynamoService extends BaseNestService {
 	}> {
 		let {
 			tableName: TableName,
-			type,
+			entity,
 			accessPattern,
 			key,
 			placeholderValues,
@@ -421,7 +428,7 @@ export class NestDynamoService extends BaseNestService {
 				);
 				key = accessProps.key;
 			} else if (accessPattern) {
-				key = this.getAccessPatterns({ type, accessPattern });
+				key = this.getAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -452,9 +459,7 @@ export class NestDynamoService extends BaseNestService {
 						Limit: options?.limit,
 						ConsistentRead: options?.consistentRead,
 						ExclusiveStartKey: options?.exclusiveStartKey
-							? Conversion.valueToItemObject(
-									options?.exclusiveStartKey
-							  )
+							? marshall(options?.exclusiveStartKey)
 							: undefined,
 						ReturnConsumedCapacity:
 							options?.returnConsumedCapacity ?? "TOTAL",
@@ -476,30 +481,33 @@ export class NestDynamoService extends BaseNestService {
 			}
 
 			if (rawData && rawData.length) {
-				return {
-					data: rawData.map((val) => {
-						return new type(
-							this.tables[TableName].toEntityInterface(
-								Conversion.itemToValueObject(
-									val as {
-										[key: string]: AttributeValue;
-									}
-								)
+				if (!isEntity(entity)) {
+					throw new Error("entity provided is not Entity");
+				}
+				const entityIsEntity = entity;
+				const data = map(rawData, (val) => {
+					return new entityIsEntity(
+						this.tables[TableName].toEntityInterface(
+							unmarshall(
+								val as {
+									[key: string]: AttributeValue;
+								}
 							)
-						);
-					}),
+						)
+					) as unknown as TReturn;
+				});
+				return {
+					data,
 					cacheHit: response ? false : true,
 					consumedCapacity: response?.ConsumedCapacity,
 					count: response?.Count,
 					lastEvaluatedKey: response?.LastEvaluatedKey
-						? Conversion.itemToValueObject(
-								response.LastEvaluatedKey
-						  )
+						? unmarshall(response.LastEvaluatedKey)
 						: undefined,
 				};
 			}
 			throw new ItemNotFoundError();
-			// return this.table[TableName].get<T>(type, key);
+			// return this.table[TableName].get<T>(entity, key);
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -555,16 +563,16 @@ export class NestDynamoService extends BaseNestService {
 	// Decorator for Local Or Online Only, no Hybrid
 	/**
 	 * Put new Item in the table
-	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table to put the item
 	 * @param  {T} item - Item to be put in the Table
 	 * @param  {PutRequestOptions} options? - Optional put options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async put<TReturn extends RegularItem, TProps = any>(
+	public async put<TReturn, TProps = any>(
 		props: {
-			type?: DynamoEntityConstructor<TReturn, TProps>;
+			entity?: DynamoEntityConstructor<TReturn, TProps>;
 			tableName: string;
 			item: TReturn;
 		},
@@ -574,13 +582,11 @@ export class NestDynamoService extends BaseNestService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { tableName: TableName, type, item } = props;
+		const { tableName: TableName, entity, item } = props;
 		// | Partial<T>
 		const Item: {
 			[key: string]: AttributeValue;
-		} = Conversion.valueToItemObject(
-			this.tables[TableName].toDynamoMap(item)
-		);
+		} = marshall(this.tables[TableName].toDynamoMap(item));
 
 		const {
 			// ExpressionAttributeValues,
@@ -615,15 +621,19 @@ export class NestDynamoService extends BaseNestService {
 			const result = response.Attributes;
 			if (result) {
 				// If there was an Item before in place
-				if (type) {
+				if (entity) {
+					if (!isEntity(entity)) {
+						throw new Error("entity provided is not Entity");
+					}
+					const entityIsEntity = entity;
 					return {
-						data: new type(
+						data: new entityIsEntity(
 							this.tables[TableName].toEntityInterface(
-								Conversion.itemToValueObject(
+								unmarshall(
 									result as { [key: string]: AttributeValue }
 								)
 							)
-						),
+						) as unknown as TReturn,
 						consumedCapacity: response.ConsumedCapacity,
 						itemCollectionMetrics: response.ItemCollectionMetrics,
 					};
@@ -645,16 +655,16 @@ export class NestDynamoService extends BaseNestService {
 	// placeholders for the partitionkey should be available
 	/**
 	 * Update item in table
-	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table that will have Item updated
 	 * @param  {T} item - The modified Item used to update the item
 	 * @param  {UpdateRequestOptions} options? - Optional update options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async update<TReturn extends RegularItem = any, TProps = any>(
+	public async update<TReturn = any, TProps = any>(
 		props: {
-			type?: DynamoEntityConstructor<TReturn, TProps>;
+			entity?: DynamoEntityConstructor<TReturn, TProps>;
 			tableName: string;
 			item: TReturn;
 		},
@@ -664,7 +674,7 @@ export class NestDynamoService extends BaseNestService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { tableName: TableName, type, item } = props;
+		const { tableName: TableName, entity, item } = props;
 		// compare update times
 		// UpdatedAt should be a base attribute that then can be assigned to a different Attribute
 
@@ -685,7 +695,7 @@ export class NestDynamoService extends BaseNestService {
 			);
 			const Key: {
 				[key: string]: AttributeValue;
-			} = Conversion.valueToItemObject(retrievedKey);
+			} = marshall(retrievedKey);
 
 			const updateMap = this.tables[TableName].toUpdateMap(item);
 
@@ -735,17 +745,21 @@ export class NestDynamoService extends BaseNestService {
 				}
 				// this is not the best example for this
 				if (response.Attributes) {
-					if (type) {
+					if (entity) {
+						if (!isEntity(entity)) {
+							throw new Error("entity provided is not Entity");
+						}
+						const entityIsEntity = entity;
 						return {
-							data: new type(
+							data: new entityIsEntity(
 								this.tables[TableName].toEntityInterface(
-									Conversion.itemToValueObject(
+									unmarshall(
 										response.Attributes as {
 											[key: string]: AttributeValue;
 										}
 									)
 								)
-							),
+							) as unknown as TReturn,
 							consumedCapacity: response.ConsumedCapacity,
 							itemCollectionMetrics:
 								response.ItemCollectionMetrics,
@@ -766,16 +780,16 @@ export class NestDynamoService extends BaseNestService {
 
 	/**
 	 * Delete item in table
-	 * @param  {DynamoEntityConstructor<T>} type - type to be returned
+	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table that will have Item deleted
 	 * @param  {T} item - The modified Item used to update the item
 	 * @param  {DeleteRequestOptions} options? - Optional delete options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async delete<TReturn extends RegularItem = any, TProps = any>(
+	public async delete<TReturn = any, TProps = any>(
 		props: {
-			type?: DynamoEntityConstructor<TReturn, TProps> &
+			entity?: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
 			tableName: string;
 			key: Key;
@@ -787,9 +801,9 @@ export class NestDynamoService extends BaseNestService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}>;
-	public async delete<TReturn extends RegularItem = any, TProps = any>(
+	public async delete<TReturn = any, TProps = any>(
 		props: {
-			type: DynamoEntityConstructor<TReturn, TProps> &
+			entity: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
 			tableName: string;
 			accessPattern: string;
@@ -801,9 +815,9 @@ export class NestDynamoService extends BaseNestService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}>;
-	public async delete<TReturn extends RegularItem = any, TProps = any>(
+	public async delete<TReturn = any, TProps = any>(
 		props: {
-			type?: DynamoEntityConstructor<TReturn, TProps> &
+			entity?: DynamoEntityConstructor<TReturn, TProps> &
 				AccessPatternsClass;
 			tableName: string;
 			key?: Key;
@@ -818,15 +832,15 @@ export class NestDynamoService extends BaseNestService {
 	}> {
 		const {
 			tableName: TableName,
-			type,
+			entity,
 			key,
 			accessPattern,
 			placeholderValues,
 		} = props;
 		try {
 			let accessProps: AccessProperties;
-			if (type && accessPattern) {
-				const key = this.getAccessPatterns({ type, accessPattern });
+			if (entity && accessPattern) {
+				const key = this.getAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -850,9 +864,7 @@ export class NestDynamoService extends BaseNestService {
 				);
 			}
 
-			const Key = Conversion.valueToItemObject(
-				accessProps.key as DynamoDBMap
-			);
+			const Key = marshall(accessProps.key as DynamoDBMap);
 
 			const {
 				ExpressionAttributeValues,
@@ -881,17 +893,21 @@ export class NestDynamoService extends BaseNestService {
 			}
 			// this is not the best example for this
 			if (response.Attributes) {
-				if (type) {
+				if (entity) {
+					if (!isEntity(entity)) {
+						throw new Error("entity provided is not Entity");
+					}
+					const entityIsEntity = entity;
 					return {
-						data: new type(
+						data: new entityIsEntity(
 							this.tables[TableName].toEntityInterface(
-								Conversion.itemToValueObject(
+								unmarshall(
 									response.Attributes as {
 										[key: string]: AttributeValue;
 									}
 								)
 							)
-						),
+						) as unknown as TReturn,
 						consumedCapacity: response.ConsumedCapacity,
 						itemCollectionMetrics: response.ItemCollectionMetrics,
 					};
@@ -908,11 +924,11 @@ export class NestDynamoService extends BaseNestService {
 	}
 
 	private getAccessPatterns(props: {
-		type: AccessPatternsClass;
+		entity: AccessPatternsClass;
 		accessPattern: string;
 	}): Key {
-		const { type, accessPattern } = props;
-		const key = type.accessPatterns?.[accessPattern];
+		const { entity, accessPattern } = props;
+		const key = entity.accessPatterns?.[accessPattern];
 		if (!key) {
 			throw new Error("Access Path does not exist");
 		}

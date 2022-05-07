@@ -1,6 +1,5 @@
 import { Duration, DateTime } from "luxon";
 import { EntityProps } from "../decorators";
-import { DynamoEntityConstructor, RegularItem } from "./item.model";
 import { Key } from "./key.model";
 import { DynamoDBMap } from "./types";
 

@@ -1,6 +1,12 @@
-import { Condition, IndexType } from "../models";
+import { Condition, DynamoDBMap, DynamoDBValue, IndexType } from "../models";
 import { Duration } from "luxon";
 import { ClassDecorator } from "../../base/decorators";
+import { entries } from "lodash";
+import {
+	EntityInstance,
+	EntityInterfaceProps,
+	EntityMixin,
+} from "../models/entity.model";
 
 export interface IndexValue {
 	type: IndexType;
@@ -28,11 +34,17 @@ export interface EntityProps {
 }
 
 // We could also technically make this static thus is not instantiated every construction
-
 export function Entity(props?: EntityProps) {
-	return ClassDecorator("entityStructure", props, {
-		enumerable: false,
-		configurable: false,
-		writable: false,
-	});
+	return function DecoratorFunction<T extends { new (...args: any[]): {} }>(
+		constructor: T
+	) {
+		return EntityMixin(
+			ClassDecorator("entityStructure", props, {
+				enumerable: false,
+				configurable: false,
+				writable: false,
+				static: true,
+			})(constructor)
+		);
+	};
 }

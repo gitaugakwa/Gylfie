@@ -9,6 +9,7 @@ export type DynamoDBValue =
 	| number[]
 	| (string | number)[]
 	| { [key: string]: DynamoDBValue };
+// Add [DynamoDBValue] => Object and can be Map
 
 export type DynamoDBMap = {
 	[key: string]: DynamoDBValue;

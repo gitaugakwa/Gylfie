@@ -1,4 +1,5 @@
 import { AttributeValue } from "@aws-sdk/client-dynamodb";
+import { convertToAttr } from "@aws-sdk/util-dynamodb";
 import { DynamoDBValue } from ".";
 import { Conversion } from "./conversion.model";
 import { Expression, ExpressionProps } from "./expression.model";
@@ -173,9 +174,17 @@ export class Condition extends Expression {
 		this._and.push(
 			new Condition({
 				...this,
-				key: (this.type == ConditionOptions.exists || this.type == ConditionOptions.notExists) ? param :key,
+				key:
+					this.type == ConditionOptions.exists ||
+					this.type == ConditionOptions.notExists
+						? param
+						: key,
 				// type: ConditionOptions.and,
-				value: (this.type == ConditionOptions.exists || this.type == ConditionOptions.notExists) ? undefined :param,
+				value:
+					this.type == ConditionOptions.exists ||
+					this.type == ConditionOptions.notExists
+						? undefined
+						: param,
 			})
 		);
 		return this;
@@ -251,9 +260,7 @@ export class Condition extends Expression {
 			case ConditionOptions.notEqual: {
 				// allow booleans
 				if (typeof this.value == "boolean") {
-					let placekey = this.setValue(
-						Conversion.valueToItem(this.value)
-					);
+					let placekey = this.setValue(this.value);
 					returnValue = `${key} ${this.type} ${placekey}`;
 					break;
 				}
@@ -271,19 +278,14 @@ export class Condition extends Expression {
 					typeof this.value == "string" ||
 					typeof this.value == "number"
 				) {
-					let placekey = this.setValue(
-						Conversion.valueToItem(this.value)
-					);
+					let placekey = this.setValue(this.value);
 					returnValue = `${key} ${this.type} ${placekey}`;
 				} else if (
 					typeof this.value == "object" &&
 					this.value != null
 				) {
 					const entry = Object.entries(this.value)[0];
-					let placekey = this.setValue(
-						Conversion.valueToItem(entry[1]),
-						`:${entry[0]}`
-					);
+					let placekey = this.setValue(entry[1], `:${entry[0]}`);
 					returnValue = `${key} ${this.type} ${placekey}`;
 				}
 				// else throw
@@ -291,12 +293,8 @@ export class Condition extends Expression {
 			}
 			case ConditionOptions.between: {
 				if (Array.isArray(this.value)) {
-					let placekey1 = this.setValue(
-						Conversion.valueToItem(this.value[0])
-					);
-					let placekey2 = this.setValue(
-						Conversion.valueToItem(this.value[1])
-					);
+					let placekey1 = this.setValue(this.value[0]);
+					let placekey2 = this.setValue(this.value[1]);
 					returnValue = `${key} BETWEEN ${placekey1} AND ${placekey2}`;
 				}
 				break;
@@ -305,9 +303,7 @@ export class Condition extends Expression {
 				if (Array.isArray(this.value)) {
 					let arrayValues = "";
 					for (let i = 0; i < this.value.length; ++i) {
-						let placekey = this.setValue(
-							Conversion.valueToItem(this.value[i])
-						);
+						let placekey = this.setValue(this.value[i]);
 						arrayValues = arrayValues.concat(`${placekey}, `);
 					}
 					arrayValues = arrayValues.substring(
@@ -320,9 +316,7 @@ export class Condition extends Expression {
 			}
 			case ConditionOptions.beginsWith: {
 				if (typeof this.value == "string") {
-					let placekey = this.setValue(
-						Conversion.valueToItem(this.value)
-					);
+					let placekey = this.setValue(this.value);
 					returnValue = `begins_with (${key}, ${placekey})`;
 				} else if (
 					typeof this.value == "object" &&
@@ -330,10 +324,7 @@ export class Condition extends Expression {
 				) {
 					let entry = Object.entries(this.value)[0];
 					if (typeof entry[1] == "string") {
-						let placekey = this.setValue(
-							Conversion.valueToItem(entry[1]),
-							`:${entry[0]}`
-						);
+						let placekey = this.setValue(entry[1], `:${entry[0]}`);
 						returnValue = `begins_with (${key}, ${placekey})`;
 					}
 				}
@@ -345,9 +336,7 @@ export class Condition extends Expression {
 					typeof this.value == "string" ||
 					typeof this.value == "number"
 				) {
-					let placekey = this.setValue(
-						Conversion.valueToItem(this.value)
-					);
+					let placekey = this.setValue(this.value);
 					returnValue = `contains (${key}, ${placekey})`;
 				} else if (
 					typeof this.value == "object" &&
@@ -358,10 +347,7 @@ export class Condition extends Expression {
 						typeof entry[1] == "string" ||
 						typeof entry[1] == "number"
 					) {
-						let placekey = this.setValue(
-							Conversion.valueToItem(entry[1]),
-							`:${entry[0]}`
-						);
+						let placekey = this.setValue(entry[1], `:${entry[0]}`);
 						returnValue = `contains (${key}, ${placekey})`;
 					}
 				}

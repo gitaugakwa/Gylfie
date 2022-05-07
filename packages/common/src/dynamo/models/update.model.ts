@@ -4,7 +4,6 @@ import { compact, concat, merge, remove } from "lodash";
 import { eventNames } from "process";
 import { Conversion } from "./conversion.model";
 import { Expression, ExpressionProps } from "./expression.model";
-import { RegularItem } from "./item.model";
 import { DynamoDBValue, DynamoDBMap } from "./types";
 
 interface UpdateItem {
@@ -125,9 +124,7 @@ export class Update extends Expression {
 		switch (this.type) {
 			case UpdateOptions.delete:
 			case UpdateOptions.add: {
-				let valueHolder = this.setValue(
-					Conversion.valueToItem(this.value)
-				);
+				let valueHolder = this.setValue(this.value);
 				let name = this.setName(key);
 				returnValue = `${this.type} ${name} ${valueHolder}`;
 				break;
@@ -138,26 +135,20 @@ export class Update extends Expression {
 				break;
 			}
 			case UpdateOptions.set: {
-				let valueHolder = this.setValue(
-					Conversion.valueToItem(this.value)
-				);
+				let valueHolder = this.setValue(this.value);
 				let name = this.setName(key);
 				returnValue = `${this.type} ${name} = ${valueHolder}`;
 				break;
 			}
 			case UpdateOptions.if_not_exists: {
-				let valueHolder = this.setValue(
-					Conversion.valueToItem(this.value)
-				);
+				let valueHolder = this.setValue(this.value);
 				let name = this.setName(key);
 				returnValue = `${UpdateOptions.set} ${name} = if_not_exists(${name},${valueHolder})`;
 
 				break;
 			}
 			case UpdateOptions.list_append: {
-				let valueHolder = this.setValue(
-					Conversion.valueToItem(this.value)
-				);
+				let valueHolder = this.setValue(this.value);
 				let name = this.setName(key);
 				returnValue = `${UpdateOptions.set} ${name} = list_append(${eventNames},${valueHolder})`;
 

@@ -49,7 +49,10 @@ class GylfieFunction extends resource_1.GylfieResource {
             const prompt = (0, inquirer_1.createPromptModule)();
             const { context, options } = request;
             const { config } = context;
-            let answers = { type: "function" };
+            let answers = {
+                type: "function",
+                stage: options ? options["stage"] : undefined,
+            };
             const name = yield prompt([
                 {
                     type: "input",
@@ -69,7 +72,7 @@ class GylfieFunction extends resource_1.GylfieResource {
                     type: "input",
                     name: "path",
                     message: (answers) => {
-                        return `Path to the ${answers.type}: ${answers.name}`;
+                        return `Path to the ${answers.type}: ${answers.name}  ${answers.stage ? `Stage: ${answers.stage}` : ""}`;
                     },
                     default: commands_1.GylfieCommand.getPath(undefined, answers),
                     filter: (input, answers) => {
@@ -80,7 +83,7 @@ class GylfieFunction extends resource_1.GylfieResource {
                     type: "list",
                     name: "runtime",
                     message: (answers) => {
-                        return `Runtime for the ${answers.type}: ${answers.name}`;
+                        return `Runtime for the ${answers.type}: ${answers.name}  ${answers.stage ? `Stage: ${answers.stage}` : ""}`;
                     },
                     choices: resource_1.ResourceDefinition.function.runtimes,
                 },
@@ -88,7 +91,7 @@ class GylfieFunction extends resource_1.GylfieResource {
                     type: "input",
                     name: "handler",
                     message: (answers) => {
-                        return `Path to the Handler function for the ${answers.type}: ${answers.name}`;
+                        return `Path to the Handler function for the ${answers.type}: ${answers.name}  ${answers.stage ? `Stage: ${answers.stage}` : ""}`;
                     },
                     default: "dist/main.handler",
                 },
@@ -96,7 +99,7 @@ class GylfieFunction extends resource_1.GylfieResource {
                     type: "input",
                     name: "startCommand",
                     message: (answers) => {
-                        return `Start Command for the ${answers.type}: ${answers.name}`;
+                        return `Start Command for the ${answers.type}: ${answers.name}  ${answers.stage ? `Stage: ${answers.stage}` : ""}`;
                     },
                     filter: (input, answers) => {
                         return input ? input : undefined;
@@ -106,7 +109,7 @@ class GylfieFunction extends resource_1.GylfieResource {
                     type: "input",
                     name: "buildCommand",
                     message: (answers) => {
-                        return `Build Command for the ${answers.type}: ${answers.name}`;
+                        return `Build Command for the ${answers.type}: ${answers.name}  ${answers.stage ? `Stage: ${answers.stage}` : ""}`;
                     },
                     filter: (input, answers) => {
                         return input ? input : undefined;
@@ -116,7 +119,7 @@ class GylfieFunction extends resource_1.GylfieResource {
                     type: "input",
                     name: "watchAppend",
                     message: (answers) => {
-                        return `Watch Append for the ${answers.type}: ${answers.name}`;
+                        return `Watch Append for the ${answers.type}: ${answers.name}  ${answers.stage ? `Stage: ${answers.stage}` : ""}`;
                     },
                     filter: (input, answers) => {
                         return input ? input : undefined;

@@ -6,9 +6,11 @@ specifiers:
   '@aws-sdk/client-lambda': ^3.67.0
   '@aws-sdk/client-s3': ^3.67.0
   '@aws-sdk/credential-providers': ^3.67.0
+  '@aws-sdk/lib-dynamodb': ^3.85.0
   '@aws-sdk/s3-presigned-post': ^3.67.0
   '@aws-sdk/s3-request-presigner': ^3.67.0
   '@aws-sdk/types': ^3.55.0
+  '@aws-sdk/util-dynamodb': ^3.85.0
   '@nestjs/common': ^8.x
   '@nestjs/config': ^1.x
   '@nestjs/core': ^8.x
@@ -86,9 +88,11 @@ dependencies:
   '@aws-sdk/client-lambda': 3.67.0
   '@aws-sdk/client-s3': 3.67.0
   '@aws-sdk/credential-providers': 3.67.0
+  '@aws-sdk/lib-dynamodb': 3.85.0_17c4e3668f9fd21af07cc5cefd4dd986
   '@aws-sdk/s3-presigned-post': 3.67.0
   '@aws-sdk/s3-request-presigner': 3.67.0
   '@aws-sdk/types': 3.55.0
+  '@aws-sdk/util-dynamodb': 3.85.0
   '@nestjs/common': 8.0.6_7de7ece315067f012f2001b6a7f20971
   '@nestjs/config': 1.0.1_e2399148d990aa1f9a4b6ba2ac7a5b74
   '@nestjs/core': 8.0.6_a4d6c832897073857f471f32139e452f
@@ -1025,6 +1029,20 @@ packages:
       tslib: 2.4.0
     dev: false
 
+  /@aws-sdk/lib-dynamodb/3.85.0_17c4e3668f9fd21af07cc5cefd4dd986:
+    resolution: {integrity: sha512-D8vxaOnlxBTNpVPkdL+JSSg9kfNza65WCKeDNmQ894PrKa00WPca8xzUT1MDQ675TB6riPYlNDQt5XCgU2vv1g==}
+    engines: {node: '>= 12.0.0'}
+    peerDependencies:
+      '@aws-sdk/client-dynamodb': ^3.0.0
+      '@aws-sdk/smithy-client': ^3.0.0
+      '@aws-sdk/types': ^3.0.0
+    dependencies:
+      '@aws-sdk/client-dynamodb': 3.67.0
+      '@aws-sdk/types': 3.55.0
+      '@aws-sdk/util-dynamodb': 3.85.0
+      tslib: 2.4.0
+    dev: false
+
   /@aws-sdk/md5-js/3.58.0:
     resolution: {integrity: sha512-V5f4Re+CLn3aDF1nrmDqdUtcqBHCyxxD2s2Ot+hZ2JFit+OtJggo1cI03ldTrQpG79rwHG+bHqL2VvNQP7Aj9A==}
     dependencies:
@@ -1674,6 +1692,13 @@ packages:
       '@aws-sdk/node-config-provider': 3.58.0
       '@aws-sdk/property-provider': 3.55.0
       '@aws-sdk/types': 3.55.0
+      tslib: 2.4.0
+    dev: false
+
+  /@aws-sdk/util-dynamodb/3.85.0:
+    resolution: {integrity: sha512-ILG4WcFQ+3GNSrqR+rs1NiaJpSxnHjrIT279K/Ri+MqFqvkHzlNqIIn+NbRj1/5DGUVMD/VlpdREqWX8F3xq9A==}
+    engines: {node: '>= 12.0.0'}
+    dependencies:
       tslib: 2.4.0
     dev: false
 
@@ -6075,7 +6100,7 @@ packages:
     dev: false
 
   file:projects/backend.tgz:
-    resolution: {integrity: sha512-Pte5ZDw7LAopgPlOXCiodH5eJ3r0OxLautNfCtnSWNQ7wXX4cQshZTYyQJbTkdgE3NMJ1h7mUDMEbZyvNFUJug==, tarball: file:projects/backend.tgz}
+    resolution: {integrity: sha512-jygwoJg3hmADTlMzXKsntnZ5IXdZ8PrHWkHMN2TZ/Z6sa22cp2VA0u79G2hUTHci5S0y8jaxu5ZqlxaelqCbPQ==, tarball: file:projects/backend.tgz}
     name: '@rush-temp/backend'
     version: 0.0.0
     dependencies:
@@ -6085,9 +6110,11 @@ packages:
       '@aws-sdk/client-lambda': 3.67.0
       '@aws-sdk/client-s3': 3.67.0
       '@aws-sdk/credential-providers': 3.67.0
+      '@aws-sdk/lib-dynamodb': 3.85.0_17c4e3668f9fd21af07cc5cefd4dd986
       '@aws-sdk/s3-presigned-post': 3.67.0
       '@aws-sdk/s3-request-presigner': 3.67.0
       '@aws-sdk/types': 3.55.0
+      '@aws-sdk/util-dynamodb': 3.85.0
       '@nestjs/common': 8.0.6_6b04b461ecdc96b96678e7ca8f2d75b8
       '@nestjs/config': 1.0.1_922e53b030408cb0e2ab4c36fc9f99fb
       '@nestjs/core': 8.0.6_b526c348c0b0bf56aac1a50d358ec1c7
@@ -6137,6 +6164,7 @@ packages:
       winston-transport: 4.5.0
     transitivePeerDependencies:
       - '@aws-sdk/signature-v4-crt'
+      - '@aws-sdk/smithy-client'
       - '@nestjs/microservices'
       - '@nestjs/websockets'
       - cache-manager
@@ -6187,7 +6215,7 @@ packages:
     dev: false
 
   file:projects/common.tgz:
-    resolution: {integrity: sha512-wguhAjeqQmOhHwBwZVhoIlyBONhENqr2jd5FzwxwOpfPmlTBz/J8R3b5cHpWwOGnqkU8+oBqG22QoFiIN2fkNQ==, tarball: file:projects/common.tgz}
+    resolution: {integrity: sha512-TprerrIjiTJyO4lsx81Q4ozP1/MTT+OCWJ1iOJLlJ+zD1BGyvseWdl53D2vgxbSrTzMF9VmhMid5vL6OFqCbiw==, tarball: file:projects/common.tgz}
     name: '@rush-temp/common'
     version: 0.0.0
     dependencies:
@@ -6196,9 +6224,11 @@ packages:
       '@aws-sdk/client-lambda': 3.67.0
       '@aws-sdk/client-s3': 3.67.0
       '@aws-sdk/credential-providers': 3.67.0
+      '@aws-sdk/lib-dynamodb': 3.85.0_17c4e3668f9fd21af07cc5cefd4dd986
       '@aws-sdk/s3-presigned-post': 3.67.0
       '@aws-sdk/s3-request-presigner': 3.67.0
       '@aws-sdk/types': 3.55.0
+      '@aws-sdk/util-dynamodb': 3.85.0
       '@nestjs/common': 8.0.6_6b04b461ecdc96b96678e7ca8f2d75b8
       '@nestjs/config': 1.0.1_922e53b030408cb0e2ab4c36fc9f99fb
       '@nestjs/core': 8.0.6_b526c348c0b0bf56aac1a50d358ec1c7
@@ -6241,6 +6271,7 @@ packages:
       winston-transport: 4.5.0
     transitivePeerDependencies:
       - '@aws-sdk/signature-v4-crt'
+      - '@aws-sdk/smithy-client'
       - '@nestjs/microservices'
       - '@nestjs/websockets'
       - cache-manager

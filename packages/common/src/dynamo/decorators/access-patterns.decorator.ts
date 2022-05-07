@@ -15,7 +15,7 @@ export interface AccessPatternsProps {
 export type AccessPatternsClass = { accessPatterns?: AccessPatternsProps };
 
 export function AccessPatterns<T extends { new (...args: any[]): any }>(
-	props: AccessPatternsProps
+	props?: AccessPatternsProps
 ) {
 	return (constructor: T) => {
 		return class extends constructor implements AccessPatternsClass {
