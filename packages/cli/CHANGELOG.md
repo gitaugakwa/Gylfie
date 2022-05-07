@@ -1,6 +1,11 @@
-# Change Log - @gylfiejs/cli
+# Change Log - @gylfie/cli
 
-This log was last generated on Tue, 28 Dec 2021 21:51:24 GMT and should not be manually modified.
+This log was last generated on Sat, 07 May 2022 15:57:04 GMT and should not be manually modified.
+
+## 0.0.5
+Sat, 07 May 2022 15:57:04 GMT
+
+_Version update only_
 
 ## 1.7.16
 Tue, 28 Dec 2021 21:51:24 GMT

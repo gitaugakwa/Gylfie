@@ -1,6 +1,11 @@
 # Change Log - @gylfie/core
 
-This log was last generated on Thu, 05 May 2022 16:03:00 GMT and should not be manually modified.
+This log was last generated on Sat, 07 May 2022 15:57:04 GMT and should not be manually modified.
+
+## 0.0.5
+Sat, 07 May 2022 15:57:04 GMT
+
+_Version update only_
 
 ## 0.0.4
 Thu, 05 May 2022 16:03:00 GMT

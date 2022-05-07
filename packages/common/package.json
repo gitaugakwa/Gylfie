@@ -1,6 +1,6 @@
 {
 	"name": "@gylfie/common",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"type": "commonjs",
 	"description": "Gylfie Javascript Common Library",
 	"main": "lib/index.js",
@@ -48,7 +48,7 @@
 		"@aws-sdk/s3-presigned-post": "^3.67.0",
 		"@aws-sdk/s3-request-presigner": "^3.67.0",
 		"@aws-sdk/types": "^3.55.0",
-		"@gylfie/core": "^0.0.4",
+		"@gylfie/core": "^0.0.5",
 		"aws-sdk": "^2.1114.0",
 		"caller-callsite": "^5.0.0",
 		"class-transformer": "^0.4.0",
