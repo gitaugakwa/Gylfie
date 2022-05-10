@@ -6,7 +6,10 @@ import {
 	BaseServiceProps,
 	BaseServiceModuleProps,
 } from "@gylfie/common/lib/base";
-import { NestS3Service, NestS3ServiceProps } from "../../services";
+import {
+	NestS3Service,
+	NestS3ServiceProps,
+} from "../../services/s3/s3.service";
 import { S3_PROPS } from "./s3.constants";
 
 export interface S3ServiceModuleProps

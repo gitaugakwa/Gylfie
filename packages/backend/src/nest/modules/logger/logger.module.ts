@@ -1,5 +1,8 @@
 import { DynamicModule, Module } from "@nestjs/common";
-import { NestLoggerService, NestLoggerServiceProps } from "../../services";
+import {
+	NestLoggerService,
+	NestLoggerServiceProps,
+} from "../../services/logger/logger.service";
 import {
 	BaseModule,
 	BaseModuleProps,

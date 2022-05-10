@@ -128,6 +128,7 @@ export abstract class BaseModule {
 			developer,
 			environment,
 			moduleLogs: this._logs,
+			// isGlobal: props?.isGlobal,
 			service,
 		});
 	}

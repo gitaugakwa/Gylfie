@@ -7,7 +7,10 @@ import {
 	BaseServiceModuleProps,
 } from "@gylfie/common/lib/base";
 import { ConfigService } from "@nestjs/config";
-import { NestCacheService, NestCacheServiceProps } from "../../services";
+import {
+	NestCacheService,
+	NestCacheServiceProps,
+} from "../../services/cache/cache.service";
 import { CACHE_PROPS } from "./cache.constants";
 
 export interface CacheServiceModuleProps

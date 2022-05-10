@@ -8,9 +8,11 @@ import {
 import {
 	NestJwkService,
 	NestJwkServiceProps,
+} from "../../services/authentication/jwk.service";
+import {
 	NestJwtService,
 	NestJwtServiceProps,
-} from "../../services/authentication";
+} from "../../services/authentication/jwt.service";
 import { JWK_PROPS, JWT_PROPS } from "./authentication.constants";
 
 export interface AuthenticationServiceModuleProps {

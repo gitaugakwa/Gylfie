@@ -33,6 +33,7 @@ export class ErrorFilter implements ExceptionFilter {
 		// This might catch all errors
 
 		// console.log("Error Filter");
+		console.log("Error:");
 		console.log(exception);
 
 		let response: GylfieResponse;

@@ -1,6 +1,6 @@
 {
 	"name": "@gylfie/cli",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"type": "commonjs",
 	"description": "Gylfie Javascript Command Line Interface",
 	"main": "./bin/main.js",
@@ -48,7 +48,7 @@
 		"inquirer": "^8.2.4",
 		"jose": "^4.8.1",
 		"lodash": "^4.17.21",
-		"luxon": "^2.3.2",
+		"luxon": "^2.4.0",
 		"reflect-metadata": "^0.1.13",
 		"rxjs": "^7.x",
 		"uuid": "^8.3.2",

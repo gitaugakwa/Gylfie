@@ -70,8 +70,8 @@ export function isEntityInterface(props: any): props is EntityInterfaceProps {
 	return props.map && (props.complete || (props.primaryKey && props.name));
 }
 
-export type DynamoEntityConstructor<TReturn = any, TProps = any> = {
-	new (value?: TProps): TReturn;
+export type DynamoEntityConstructor<TReturn = any> = {
+	new (...args: any[]): TReturn;
 };
 
 // If the value is in a schema, it will be returned as a string
@@ -163,7 +163,7 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 					_gylfie_entityStructure: EntityProps;
 				}
 			)._gylfie_entityStructure;
-			if (props && entityStructure) {
+			if (props && entityStructure && isEntityInterface(props)) {
 				// Get values from schema
 				// Get table key attribute names
 				if (isComplete(props)) {
@@ -171,7 +171,7 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 					// Object.assign(this, props.map);
 					return;
 				}
-				const { partitionKey, sortKey } = props.primaryKey;
+				const { partitionKey, sortKey } = entityStructure.primaryKey;
 
 				const values: [string, DynamoDBValue][] = [];
 				const keys: string[] = [partitionKey];
@@ -249,7 +249,7 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 				);
 				return;
 			}
-			super();
+			super(...args);
 		}
 
 		public update(modified: { [key: string]: Update | DynamoDBValue }) {

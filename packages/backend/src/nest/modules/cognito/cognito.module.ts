@@ -10,7 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import {
 	NestCognitoService,
 	NestCognitoServiceProps,
-} from "../../services/cognito";
+} from "../../services/cognito/cognito.service";
 import { COGNITO_PROPS } from "./cognito.constants";
 
 export interface CognitoServiceModuleProps
@@ -54,7 +54,7 @@ export class CognitoModule extends BaseModule {
 			providers: [
 				{ provide: COGNITO_PROPS, useValue: cognitoProps },
 				NestCognitoService,
-				ConfigService,
+				// ConfigService,
 			],
 			exports: [NestCognitoService],
 		};

@@ -2,6 +2,12 @@
   "name": "@gylfie/common",
   "entries": [
     {
+      "version": "0.0.6",
+      "tag": "@gylfie/common_v0.0.6",
+      "date": "Tue, 10 May 2022 11:13:49 GMT",
+      "comments": {}
+    },
+    {
       "version": "0.0.5",
       "tag": "@gylfie/common_v0.0.5",
       "date": "Sat, 07 May 2022 15:57:04 GMT",

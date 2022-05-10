@@ -7,6 +7,7 @@ import { CognitoServiceModuleProps } from "./cognito";
 import { S3ServiceModuleProps } from "./s3";
 import { AuthenticationServiceModuleProps } from "./authentication";
 import { CacheServiceModuleProps } from "./cache";
+import { values } from "lodash";
 
 export interface GylfieModuleProps extends BaseModuleProps {
 	dynamo?: DynamoServiceModuleProps;
@@ -22,7 +23,7 @@ export interface GylfieModuleProps extends BaseModuleProps {
 export class GylfieModule extends BaseModule {
 	static async forRoot(props?: GylfieModuleProps): Promise<DynamicModule> {
 		// Will set all nested Modules to global
-		const modules: { [key: string]: DynamicModule } = {};
+		const imports: { [key: string]: DynamicModule } = {};
 		const providers: Provider<any>[] = [];
 		const controllers: Type<any>[] = [];
 		if (props) {
@@ -45,36 +46,46 @@ export class GylfieModule extends BaseModule {
 			if (cache) {
 				// console.log("Inside cache");
 				modulePromises.push(
-					new Promise(async (res) => {
-						modules["cache"] = (
-							await import("./cache")
-						).CacheModule.forRoot(cache, baseProps);
-						if (modules["cache"].providers) {
-							providers.push(...modules["cache"].providers);
-						}
-						if (modules["cache"].controllers) {
-							controllers.push(...modules["cache"].controllers);
-						}
-						res();
-						return;
+					new Promise((res) => {
+						import("./cache").then(({ CacheModule }) => {
+							imports["cache"] = CacheModule.forRoot(
+								cache,
+								baseProps
+							);
+							if (imports["cache"].providers) {
+								providers.push(...imports["cache"].providers);
+							}
+							if (imports["cache"].controllers) {
+								controllers.push(
+									...imports["cache"].controllers
+								);
+							}
+							res();
+							return;
+						});
 					})
 				);
 			}
 			if (dynamo) {
 				// console.log("Inside dynamo");
 				modulePromises.push(
-					new Promise(async (res) => {
-						modules["dynamo"] = (
-							await import("./dynamo")
-						).DynamoModule.forRoot(dynamo, baseProps);
-						if (modules["dynamo"].providers) {
-							providers.push(...modules["dynamo"].providers);
-						}
-						if (modules["dynamo"].controllers) {
-							controllers.push(...modules["dynamo"].controllers);
-						}
-						res();
-						return;
+					new Promise((res) => {
+						import("./dynamo").then(({ DynamoModule }) => {
+							imports["dynamo"] = DynamoModule.forRoot(
+								dynamo,
+								baseProps
+							);
+							if (imports["dynamo"].providers) {
+								providers.push(...imports["dynamo"].providers);
+							}
+							if (imports["dynamo"].controllers) {
+								controllers.push(
+									...imports["dynamo"].controllers
+								);
+							}
+							res();
+							return;
+						});
 					})
 				);
 			}
@@ -82,18 +93,23 @@ export class GylfieModule extends BaseModule {
 			if (cognito) {
 				// console.log("Inside Cognito");
 				modulePromises.push(
-					new Promise(async (res) => {
-						modules["cognito"] = (
-							await import("./cognito")
-						).CognitoModule.forRoot(cognito, baseProps);
-						if (modules["cognito"].providers) {
-							providers.push(...modules["cognito"].providers);
-						}
-						if (modules["cognito"].controllers) {
-							controllers.push(...modules["cognito"].controllers);
-						}
-						res();
-						return;
+					new Promise((res) => {
+						import("./cognito").then(({ CognitoModule }) => {
+							imports["cognito"] = CognitoModule.forRoot(
+								cognito,
+								baseProps
+							);
+							if (imports["cognito"].providers) {
+								providers.push(...imports["cognito"].providers);
+							}
+							if (imports["cognito"].controllers) {
+								controllers.push(
+									...imports["cognito"].controllers
+								);
+							}
+							res();
+							return;
+						});
 					})
 				);
 			}
@@ -101,18 +117,18 @@ export class GylfieModule extends BaseModule {
 			if (s3) {
 				// console.log("Inside S3");
 				modulePromises.push(
-					new Promise(async (res) => {
-						modules["s3"] = (await import("./s3")).S3Module.forRoot(
-							s3,
-							baseProps
-						);
-						if (modules["s3"].providers) {
-							providers.push(...modules["s3"].providers);
-						}
-						if (modules["s3"].controllers) {
-							controllers.push(...modules["s3"].controllers);
-						}
-						res();
+					new Promise((res) => {
+						import("./s3").then(({ S3Module }) => {
+							imports["s3"] = S3Module.forRoot(s3, baseProps);
+							if (imports["s3"].providers) {
+								providers.push(...imports["s3"].providers);
+							}
+							if (imports["s3"].controllers) {
+								controllers.push(...imports["s3"].controllers);
+							}
+							res();
+							return;
+						});
 					})
 				);
 			}
@@ -120,18 +136,23 @@ export class GylfieModule extends BaseModule {
 			if (logger) {
 				// console.log("Inside Logger");
 				modulePromises.push(
-					new Promise(async (res) => {
-						modules["logger"] = (
-							await import("./logger")
-						).LoggerModule.forRoot(logger, baseProps);
-						if (modules["logger"].providers) {
-							providers.push(...modules["logger"].providers);
-						}
-						if (modules["logger"].controllers) {
-							controllers.push(...modules["logger"].controllers);
-						}
-						res();
-						return;
+					new Promise((res) => {
+						import("./logger").then(({ LoggerModule }) => {
+							imports["logger"] = LoggerModule.forRoot(
+								logger,
+								baseProps
+							);
+							if (imports["logger"].providers) {
+								providers.push(...imports["logger"].providers);
+							}
+							if (imports["logger"].controllers) {
+								controllers.push(
+									...imports["logger"].controllers
+								);
+							}
+							res();
+							return;
+						});
 					})
 				);
 			}
@@ -188,6 +209,7 @@ export class GylfieModule extends BaseModule {
 		return {
 			module: GylfieModule,
 			global: props?.isGlobal,
+			// imports: values(imports),
 			providers,
 			controllers,
 			exports: providers,

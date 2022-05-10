@@ -7,7 +7,10 @@ import {
 	BaseServiceModuleProps,
 } from "@gylfie/common/lib/base";
 import { ConfigService } from "@nestjs/config";
-import { NestDynamoService, NestDynamoServiceProps } from "../../services";
+import {
+	NestDynamoService,
+	NestDynamoServiceProps,
+} from "../../services/dynamo/dynamo.service";
 import { DYNAMO_PROPS } from "./dynamo.constants";
 
 export interface DynamoServiceModuleProps
@@ -50,7 +53,7 @@ export class DynamoModule extends BaseModule {
 			providers: [
 				{ provide: DYNAMO_PROPS, useValue: dynamoProps },
 				NestDynamoService,
-				ConfigService,
+				// ConfigService,
 			],
 			exports: [NestDynamoService],
 		};

@@ -365,8 +365,7 @@ export class NestDynamoService extends BaseNestService {
 	// public async get<TReturn  = any, TProps = any>(entity)
 	public async get<TReturn = any, TProps = any>(
 		props: {
-			entity: DynamoEntityConstructor<TReturn, TProps> &
-				AccessPatternsClass;
+			entity: DynamoEntityConstructor<TReturn> & AccessPatternsClass;
 			tableName: string;
 			accessPattern: string;
 			placeholderValues?: DynamoDBMap;
@@ -381,7 +380,7 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async get<TReturn = any, TProps = any>(
 		props: {
-			entity: DynamoEntityConstructor<TReturn, TProps>;
+			entity: DynamoEntityConstructor<TReturn>;
 			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
@@ -396,8 +395,7 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async get<TReturn = any, TProps = any>(
 		props: {
-			entity: DynamoEntityConstructor<TReturn, TProps> &
-				AccessPatternsClass;
+			entity: DynamoEntityConstructor<TReturn> & AccessPatternsClass;
 			tableName: string;
 			key?: Key;
 			accessPattern?: string;
@@ -570,11 +568,11 @@ export class NestDynamoService extends BaseNestService {
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Online)
-	public async put<TReturn, TProps = any>(
+	public async put<TReturn = any, TItem = TReturn>(
 		props: {
-			entity?: DynamoEntityConstructor<TReturn, TProps>;
+			entity?: DynamoEntityConstructor<TReturn>;
 			tableName: string;
-			item: TReturn;
+			item: TItem;
 		},
 		options?: PutRequestOptions
 	): Promise<{
@@ -664,7 +662,7 @@ export class NestDynamoService extends BaseNestService {
 	// @States(State.Local, State.Online)
 	public async update<TReturn = any, TProps = any>(
 		props: {
-			entity?: DynamoEntityConstructor<TReturn, TProps>;
+			entity?: DynamoEntityConstructor<TReturn>;
 			tableName: string;
 			item: TReturn;
 		},
@@ -789,8 +787,7 @@ export class NestDynamoService extends BaseNestService {
 	// @States(State.Local, State.Online)
 	public async delete<TReturn = any, TProps = any>(
 		props: {
-			entity?: DynamoEntityConstructor<TReturn, TProps> &
-				AccessPatternsClass;
+			entity?: DynamoEntityConstructor<TReturn> & AccessPatternsClass;
 			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
@@ -803,8 +800,7 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async delete<TReturn = any, TProps = any>(
 		props: {
-			entity: DynamoEntityConstructor<TReturn, TProps> &
-				AccessPatternsClass;
+			entity: DynamoEntityConstructor<TReturn> & AccessPatternsClass;
 			tableName: string;
 			accessPattern: string;
 			placeholderValues?: DynamoDBMap;
@@ -817,8 +813,7 @@ export class NestDynamoService extends BaseNestService {
 	}>;
 	public async delete<TReturn = any, TProps = any>(
 		props: {
-			entity?: DynamoEntityConstructor<TReturn, TProps> &
-				AccessPatternsClass;
+			entity?: DynamoEntityConstructor<TReturn> & AccessPatternsClass;
 			tableName: string;
 			key?: Key;
 			accessPattern?: string;

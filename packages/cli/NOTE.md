@@ -1,4 +1,5 @@
 <!-- TODO -->
+
 Add default stage to the props of a resource
 Thus if a property has only one stage, that will be the one run
 If there are stages, the resource props will be used like global props
@@ -19,10 +20,13 @@ An aws profile will be provided in gylfie.json
 
 Fix cli after upgrade
 
+Fix file creation and folder creation problems
+
 <!-- Dynamo should technically be a service -->
+
 Services
-	S3
-		https://github.com/localstack/localstack
-		https://github.com/good-idea/localstack-demo
-	Cognito
-		https://github.com/jagregory/cognito-local
+S3
+https://github.com/localstack/localstack
+https://github.com/good-idea/localstack-demo
+Cognito
+https://github.com/jagregory/cognito-local

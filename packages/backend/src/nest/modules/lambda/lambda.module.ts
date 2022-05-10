@@ -6,7 +6,10 @@ import {
 	BaseServiceProps,
 	BaseServiceModuleProps,
 } from "@gylfie/common/lib/base";
-import { NestLambdaService, NestLambdaServiceProps } from "../../services";
+import {
+	NestLambdaService,
+	NestLambdaServiceProps,
+} from "../../services/lambda/lambda.service";
 import { LAMBDA_PROPS } from "./lambda.constants";
 
 export interface LambdaServiceModuleProps

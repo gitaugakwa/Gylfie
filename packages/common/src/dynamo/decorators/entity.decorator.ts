@@ -18,7 +18,7 @@ export interface EntityProps {
 	name: string;
 	primaryKey: {
 		partitionKey: string;
-		sortKey?: string | number;
+		sortKey?: string;
 	};
 	condition?: Condition;
 	indexes?: {
