@@ -1,6 +1,6 @@
 {
 	"name": "@gylfie/cli",
-	"version": "0.0.6",
+	"version": "0.0.7",
 	"type": "commonjs",
 	"description": "Gylfie Javascript Command Line Interface",
 	"main": "./bin/main.js",

@@ -1,5 +1,6 @@
+import { CreateBucketOptions } from "@gylfie/common/lib/s3";
 import { Controller, Post, Param, Get, Delete, Body } from "@nestjs/common";
-import { CreateBucketOptions, NestS3Service } from "../../services/s3";
+import { NestS3Service } from "../../services/s3";
 // import { Public } from "../../../decorators";
 
 @Controller("s3")

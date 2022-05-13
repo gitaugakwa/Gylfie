@@ -171,7 +171,7 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 					// Object.assign(this, props.map);
 					return;
 				}
-				const { partitionKey, sortKey } = entityStructure.primaryKey;
+				const { partitionKey, sortKey } = props.primaryKey;
 
 				const values: [string, DynamoDBValue][] = [];
 				const keys: string[] = [partitionKey];

@@ -57,7 +57,7 @@ import {
 import { Placeholder } from "../../dynamo/placeholders";
 import { fromEnv } from "@aws-sdk/credential-providers";
 import { omitBy, isUndefined, isNull, isNil } from "lodash";
-import { LOCAL_COGNITO_PORT } from "../constants";
+import { LOCAL_COGNITO_PORT, COGNITO_REGION } from "../constants";
 
 // Should we have friendly ids for users?
 // I don't think it would be advised
@@ -117,6 +117,7 @@ export interface CognitoServiceProps extends BaseServiceProps {
 	// access: CognitoAccessPatterns;
 	// email?: string;
 	port?: number;
+	region?: string;
 	clientID?: string;
 	userPoolID?: string;
 }
@@ -193,7 +194,7 @@ export interface CognitoServiceProps extends BaseServiceProps {
 
 // @ServiceState(9229, "LOCAL_COGNITO_PORT")
 export class CognitoService extends BaseService {
-	public cognitoIdentityProvider: CognitoIdentityProviderClient;
+	public cognitoIdentityProvider!: CognitoIdentityProviderClient;
 	// private accessPattern: AccessPattern;
 	public clientID: string;
 	public userPoolID: string;
@@ -212,64 +213,44 @@ export class CognitoService extends BaseService {
 		this.userPoolID =
 			props?.userPoolID ?? process.env.COGNITO_APP_USERPOOL_ID ?? "";
 
-		this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
-			region: props?.region ?? process.env.COGNITO_REGION ?? "eu-west-1",
-			credentials: props?.credentials ?? fromEnv(),
-		});
 		if (this.isLocal()) {
+			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
-					this.cognitoIdentityProvider =
-						new CognitoIdentityProviderClient({
-							endpoint: `http://localhost:${this.port}`,
-							region:
-								props?.region ??
-								process.env.COGNITO_REGION ??
-								"eu-west-1",
-							credentials: props?.credentials ?? fromEnv(),
-						});
+					props?.logger?.info(
+						`CognitoService (${this.state}): Local Is ACTIVE`
+					);
+				} else {
+					props?.logger?.warn(
+						`CognitoService (${this.state}): Local Is INACTIVE`
+					);
 				}
+				this.cognitoIdentityProvider =
+					new CognitoIdentityProviderClient({
+						endpoint: `http://localhost:${this.port}`,
+						region:
+							props?.region ??
+							process.env.COGNITO_REGION ??
+							COGNITO_REGION,
+						credentials: props?.credentials ?? fromEnv(),
+					});
+				props?.logger?.info(
+					`CognitoService (${this.state}): CognitoIdentityProviderClient Initialized`
+				);
 			});
+			return;
 		}
 
-		// if (this.isLocal()) {
-		// 	// Since this is mostly port stuff,
-		// 	// We can make a decorator that can take the port to check if it's active
-		// 	// Have the isLocal and isLocalActive on static.
-		// 	// This will allow to pass a name, port and default port
-		// 	logger?.info("Is Currently in Local Environment");
-		// 	// the default local setup is Hybrid
-		// 	// Since it's async to determine if the port is in use
-		// 	this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
-		// 		region: "eu-west-1",
-		// 		credentials: credentials ?? fromEnv(),
-		// 	});
-		// 	this.state = State.Hybrid;
-		// 	this.isLocalActive(this.port).then((active) => {
-		// 		if (active) {
-		// 			logger?.info("Local Instance of Cognito is ACTIVE");
-		// 			this.cognitoIdentityProvider =
-		// 				new CognitoIdentityProviderClient({
-		// 					endpoint: `http://localhost:${this.port}`,
-		// 					region: "eu-west-1",
-		// 					credentials: credentials ?? fromEnv(),
-		// 				});
-		// 			this.state = State.Local;
-		// 			return;
-		// 		}
-		// 		logger?.warn("Local Instance of Cognito is INACTIVE");
-		// 		logger?.warn("Defauting to online instance");
-		// 		logger?.warn("Only Read Only Actions will be Passed");
-		// 		return;
-		// 	});
-		// 	return;
-		// }
-		// logger?.info("Online Instance of Cognito is ACTIVE");
-		// this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
-		// 	region: "eu-west-1",
-		// 	credentials: credentials ?? fromEnv(),
-		// });
-		// this.state = State.Online;
+		this.state = State.ONLINE;
+		this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
+			region:
+				props?.region ?? process.env.COGNITO_REGION ?? COGNITO_REGION,
+			credentials: props?.credentials ?? fromEnv(),
+		});
+
+		props?.logger?.info(
+			`CognitoService (${this.state}): CognitoIdentityProviderClient Initialized`
+		);
 	}
 
 	//#region Basic Cognito Chores

@@ -1,11 +1,13 @@
 import { checkPortStatus, Status } from "portscanner";
 import { GylfieError } from "../errors";
 import { Credentials, Provider } from "@aws-sdk/types";
+import { LoggerService } from "../../logger";
 
 export enum State {
-	Online, // Full online, i.e. running on aws
-	Local, // Full local, i.e. running on a local instance
-	Hybrid, // Partially online, Partially local, i.e. the core is running but the dynamo instance is online
+	ONLINE = "ONLINE", // Full online, i.e. running on aws
+	LOCAL = "LOCAL", // Full local, i.e. running on a local instance
+	HYBRID = "HYBRID", // Partially online, Partially local, i.e. the core is running but the dynamo instance is online
+	INERT = "INERT", // Does not depend on state
 }
 
 export interface BaseServiceProps {
@@ -20,10 +22,11 @@ export interface BaseServiceProps {
 	// request?: any; // based on the request
 	// context?: Context; // based on the request
 	moduleLogs?: string[]; // for now, though it would be a log object
+	logger?: LoggerService;
 }
 
 export abstract class BaseService {
-	public state: State = State.Online;
+	public state: State = State.ONLINE;
 
 	constructor() {}
 

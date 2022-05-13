@@ -104,7 +104,7 @@ export class LoggerService extends BaseService {
 			],
 		});
 
-		this.state = State.Local;
+		this.state = State.LOCAL;
 	}
 
 	// assuming that when a lambda is running, it runs per request, i.e

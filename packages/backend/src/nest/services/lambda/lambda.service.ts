@@ -1,88 +1,27 @@
-import {
-	LambdaClient,
-	InvokeCommand,
-	LogType,
-	InvocationType,
-} from "@aws-sdk/client-lambda";
-import { Injectable, Inject, Optional, forwardRef } from "@nestjs/common";
+import { LambdaService, LambdaServiceProps } from "@gylfie/common/lib/lambda";
+import { forwardRef, Inject, Injectable, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { NestLoggerService } from "../logger/logger.service";
-import {
-	BaseService,
-	BaseServiceProps,
-	GylfieError,
-	State,
-} from "@gylfie/common/lib/base";
 import { LAMBDA_PROPS } from "../../modules/lambda";
-import { LambdaFunction, LOCAL_LAMBDA_PORT } from "@gylfie/common/lib/lambda";
-import { fromEnv } from "@aws-sdk/credential-providers";
-import { BaseNestService } from "../../base";
+import { NestLoggerService } from "../logger/logger.service";
 
-export interface NestLambdaServiceProps extends BaseServiceProps {}
+export interface NestLambdaServiceProps extends LambdaServiceProps {}
 
 @Injectable()
-export class NestLambdaService extends BaseNestService {
-	public state: State;
-	private lambda: LambdaClient;
-	private functions: { [key: string]: LambdaFunction } = {};
-	// private port: number;
+export class NestLambdaService extends LambdaService {
 	constructor(
 		@Inject(LAMBDA_PROPS)
-		private readonly props: NestLambdaServiceProps,
+		props: NestLambdaServiceProps,
 		@Optional()
-		protected configService?: ConfigService,
+		configService?: ConfigService,
 		// @Optional()
 		@Inject(forwardRef(() => NestLoggerService))
-		private logger?: NestLoggerService
+		logger?: NestLoggerService
 	) {
-		super();
-		// The local state of this will have to use
-		// https://github.com/ashiina/lambda-local
-
-		this.lambda = new LambdaClient({
-			region: "eu-west-1",
-			credentials: props.credentials ?? fromEnv(),
+		super({
+			...props,
+			port: props.port ?? configService?.get<number>("LOCAL_LAMBDA_PORT"),
+			region: props.region ?? configService?.get<string>("LAMBDA_REGION"),
+			logger,
 		});
-		this.state = State.Online;
-	}
-
-	public async invokeLambda(
-		FunctionName: string,
-		options?: {
-			payload?: any;
-			qualifier?: string;
-			logType?: keyof typeof LogType;
-			invocationType?: keyof typeof InvocationType;
-		}
-	) {
-		const logType: LogType = LogType[options?.logType ?? "Tail"];
-		const invokeType: InvocationType =
-			InvocationType[options?.invocationType ?? "RequestResponse"];
-		try {
-			const { Payload } = await this.lambda.send(
-				new InvokeCommand({
-					FunctionName,
-					Payload: options?.payload,
-					Qualifier: options?.qualifier,
-					LogType: logType,
-					InvocationType: invokeType,
-					// ClientContext -> Might pass the current function and stuff like that
-				})
-			);
-			if (Payload) {
-				return JSON.parse(JSON.stringify(Payload));
-			}
-		} catch (err) {
-			// throw new GylfieError(err);
-			throw new Error(err as any); //Fix
-		}
-	}
-
-	public getFunction(functionName: string) {
-		return this.functions[functionName];
-	}
-
-	protected errorHandler(err?: any, inner?: GylfieError): GylfieError {
-		throw new Error("Method not implemented.");
 	}
 }

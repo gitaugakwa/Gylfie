@@ -1,23 +1,19 @@
+import { AttributeValue } from "@aws-sdk/client-dynamodb";
+import { cloneDeep, concat, reduce } from "lodash";
 import "reflect-metadata";
+import { getMetadata } from "../../base/metadata";
+import { EntityProps } from "../decorators";
+import { Placeholder } from "../placeholders";
+import { Conversion } from "./conversion.model";
+import { EntityInterfaceProps } from "./entity.model";
+import { IndexType } from "./index.model";
 import {
-	PartitionPrimaryKeyDefinition,
 	IndexKeyDefinition,
 	Key,
+	PartitionPrimaryKeyDefinition,
 } from "./key.model";
-import { EntityProps, IndexValue } from "../decorators";
-import { IndexType } from "./index.model";
-import { DynamoEntityConstructor, EntityInterfaceProps } from "./entity.model";
 import { DynamoDBMap, DynamoDBValue } from "./types";
-import { Conversion } from "./conversion.model";
-import { Condition } from "./condition.model";
-import { Duration } from "luxon";
-import { PutRequestOptions } from "./request.model";
-import { AttributeValue } from "@aws-sdk/client-dynamodb";
-import { getMetadata } from "../../base/metadata";
-import { Placeholder } from "../placeholders";
-import { cloneDeep, concat, findKey, reduce } from "lodash";
 import { Update, UpdateMap, UpdateOptions } from "./update.model";
-import { validate } from "email-validator";
 
 export interface TableProps {
 	name: string;

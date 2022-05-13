@@ -2,6 +2,12 @@
   "name": "@gylfie/core",
   "entries": [
     {
+      "version": "0.0.7",
+      "tag": "@gylfie/core_v0.0.7",
+      "date": "Fri, 13 May 2022 13:23:21 GMT",
+      "comments": {}
+    },
+    {
       "version": "0.0.6",
       "tag": "@gylfie/core_v0.0.6",
       "date": "Tue, 10 May 2022 11:13:49 GMT",

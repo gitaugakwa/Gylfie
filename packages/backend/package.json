@@ -1,6 +1,6 @@
 {
 	"name": "@gylfie/backend",
-	"version": "0.0.6",
+	"version": "0.0.7",
 	"type": "commonjs",
 	"description": "Gylfie Javascript Backend Library",
 	"main": "lib/index.js",
@@ -21,7 +21,7 @@
 		"gylfie"
 	],
 	"devDependencies": {
-		"@nestjs/testing": "^8.4.4",
+		"@nestjs/testing": "^8.4.5",
 		"@types/aws-lambda": "^8.10.97",
 		"@types/cors": "^2.8.12",
 		"@types/express": "^4.17.13",
@@ -29,7 +29,6 @@
 		"@types/lodash": "^4.14.182",
 		"@types/luxon": "^2.3.2",
 		"@types/node": "^14.14.41",
-		"@types/object-hash": "^2.2.1",
 		"@types/passport-jwt": "^3.0.6",
 		"@types/portscanner": "^2.1.1",
 		"@types/uuid": "^8.3.4",
@@ -41,20 +40,10 @@
 		"typescript": "^4.6.4"
 	},
 	"dependencies": {
-		"@aws-sdk/client-cognito-identity-provider": "^3.87.0",
-		"@aws-sdk/client-dynamodb": "^3.87.0",
-		"@aws-sdk/client-lambda": "^3.87.0",
-		"@aws-sdk/client-s3": "^3.87.0",
-		"@aws-sdk/credential-providers": "^3.87.0",
-		"@aws-sdk/s3-presigned-post": "^3.87.0",
-		"@aws-sdk/s3-request-presigner": "^3.87.0",
 		"@aws-sdk/types": "^3.78.0",
-		"@aws-sdk/util-dynamodb": "^3.87.0",
-		"@gylfie/common": "^0.0.6",
-		"@gylfie/core": "^0.0.6",
+		"@gylfie/common": "^0.0.7",
+		"@gylfie/core": "^0.0.7",
 		"@nestjs/jwt": "^8.0.0",
-		"aws-sdk": "^2.1131.0",
-		"caller-callsite": "^5.0.0",
 		"class-transformer": "^0.4.0",
 		"class-validator": "^0.13.1",
 		"dotenv": "^10.0.0",
@@ -63,18 +52,16 @@
 		"jose": "^4.8.1",
 		"jsonwebtoken": "^8.5.1",
 		"luxon": "^2.4.0",
-		"object-hash": "^2.2.0",
 		"portscanner": "^2.2.0",
 		"reflect-metadata": "^0.1.13",
 		"rxjs": "^7.x",
 		"uuid": "^8.3.2",
 		"winston": "^3.7.2",
-		"winston-transport": "^4.5.0",
-		"@aws-sdk/lib-dynamodb": "^3.87.0"
+		"winston-transport": "^4.5.0"
 	},
 	"peerDependencies": {
 		"@nestjs/common": "^8.x",
-		"@nestjs/config": "^1.x",
+		"@nestjs/config": "^2.x",
 		"@nestjs/core": "^8.x",
 		"@nestjs/passport": "^8.X",
 		"@nestjs/platform-express": "^8.x",
@@ -100,3 +87,4 @@
 	"license": "ISC",
 	"gitHead": "ceb0ce1482a41d5a1c1fcc512a43da1753680c20"
 }
+

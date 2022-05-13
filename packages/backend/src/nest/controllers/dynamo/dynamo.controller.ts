@@ -1,6 +1,7 @@
 import { Controller, Post, Param, Get, Delete, Body } from "@nestjs/common";
 // import { Public } from "@gylfie/common/lib/base";
-import { CreateTableProps, NestDynamoService } from "../../services/dynamo";
+import { CreateTableProps } from "@gylfie/common";
+import { NestDynamoService } from "../../services/dynamo";
 
 @Controller("dynamo")
 export class DynamoController {

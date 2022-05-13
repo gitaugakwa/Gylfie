@@ -8,7 +8,7 @@ import { BaseService, BaseServiceProps, State } from "../../base/services";
 import { LambdaFunction } from "../models";
 import { GylfieError } from "../../base/errors";
 import { fromEnv } from "@aws-sdk/credential-providers";
-import { LOCAL_LAMBDA_PORT } from "../constants";
+import { LAMBDA_REGION, LOCAL_LAMBDA_PORT } from "../constants";
 
 export interface LambdaServiceProps extends BaseServiceProps {
 	region?: string;
@@ -16,7 +16,7 @@ export interface LambdaServiceProps extends BaseServiceProps {
 }
 
 export class LambdaService extends BaseService {
-	private lambda: LambdaClient;
+	private lambda!: LambdaClient;
 	private port: number;
 	private functions: { [key: string]: LambdaFunction } = {};
 	// private port: number;
@@ -29,21 +29,38 @@ export class LambdaService extends BaseService {
 			(parseInt(process.env.LOCAL_LAMBDA_PORT ?? "") ||
 				LOCAL_LAMBDA_PORT);
 
-		this.lambda = new LambdaClient({
-			region: props?.region ?? "eu-west-1",
-			credentials: props?.credentials ?? fromEnv(),
-		});
 		if (this.isLocal()) {
+			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
-					this.lambda = new LambdaClient({
-						endpoint: `http://localhost:${this.port}`,
-						region: props?.region ?? "eu-west-1",
-						credentials: props?.credentials ?? fromEnv(),
-					});
+					props?.logger?.info(
+						`LambdaService (${this.state}): Local Is ACTIVE`
+					);
+				} else {
+					props?.logger?.warn(
+						`LambdaService (${this.state}): Local Is INACTIVE`
+					);
 				}
+				this.lambda = new LambdaClient({
+					endpoint: `http://localhost:${this.port}`,
+					region: props?.region ?? LAMBDA_REGION,
+					credentials: props?.credentials ?? fromEnv(),
+				});
+				props?.logger?.info(
+					`LambdaService (${this.state}): LambdaClient Initialized`
+				);
 			});
+			return;
 		}
+
+		this.state = State.ONLINE;
+		this.lambda = new LambdaClient({
+			region: props?.region ?? LAMBDA_REGION,
+			credentials: props?.credentials ?? fromEnv(),
+		});
+		props?.logger?.info(
+			`LambdaService (${this.state}): LambdaClient Initialized`
+		);
 	}
 
 	public async invokeLambda(

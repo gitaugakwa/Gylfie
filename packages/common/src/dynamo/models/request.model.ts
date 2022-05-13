@@ -1,4 +1,4 @@
-import { CacheGetProps } from "../services";
+import { CacheGetProps } from "../../cache/services";
 import { Condition } from "./condition.model";
 import { DynamoDBMap } from "./types";
 

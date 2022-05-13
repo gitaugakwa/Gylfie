@@ -1,7 +1,6 @@
 import { Duration, DateTime } from "luxon";
-import { EntityProps } from "../decorators";
-import { Key } from "./key.model";
-import { DynamoDBMap } from "./types";
+import { EntityProps } from "../../dynamo/decorators";
+import { DynamoDBMap } from "../../dynamo/models";
 
 // CACHING IS AN OPTIMIZATION WE CURRENTLY DO NOT NEED
 

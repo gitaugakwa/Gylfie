@@ -2,7 +2,7 @@ import { AttributeValue, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { BaseService, BaseServiceProps, State } from "../../base/services";
 import { GylfieError } from "../../base/errors";
 import Hash from "object-hash";
-import { Key } from "../models";
+import { Key } from "../../dynamo/models";
 
 export interface CacheObject<TValue> {
 	value: TValue;
@@ -36,6 +36,8 @@ export class CacheService extends BaseService {
 	} = {};
 	constructor(private props?: CacheServiceProps) {
 		super();
+		this.state = State.INERT;
+		props?.logger?.info(`CacheService (${this.state}): Initialized`);
 	}
 
 	public add(props: {

@@ -7,5 +7,8 @@ export function getMetadata<T = any>(
 	if (name) {
 		return Reflect.getMetadata(`_gylfie_${property}`, entity, name);
 	}
-	return entity[`_gylfie_${property}`];
+	return (
+		entity[`_gylfie_${property}`] ??
+		entity.constructor[`_gylfie_${property}`] // Static Metadata
+	);
 }

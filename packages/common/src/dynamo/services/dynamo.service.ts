@@ -53,29 +53,37 @@ import {
 	TransactionConflictError,
 } from "../errors";
 import { AccessPatternsClass, Entity } from "../decorators";
-import { capitalize, map, merge } from "lodash";
-import { CacheService, CacheServiceProps } from "./cache.service";
-import { LOCAL_DYNAMO_PORT } from "../constants";
+import { capitalize, isObject, map, merge } from "lodash";
+import { CacheService, CacheServiceProps } from "../../cache/services";
+import { DYNAMO_REGION, LOCAL_DYNAMO_PORT } from "../constants";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
+import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 
 export interface DynamoServiceProps extends BaseServiceProps {
 	tables?: TableProps[];
 	region?: string;
 	port?: number;
 	cache?: boolean | { duration?: number };
+	cacheService?: CacheService;
 }
 
-export interface CreateTableProps extends TableProps {
+interface CreateTableProvisionedProps {
+	billing: "PROVISIONED";
+	RCU: number;
+	WCU: number;
+}
+interface CreateTablePPRProps {
+	billing: "PAY_PER_REQUEST";
+}
+
+export type CreateTableProps = TableProps & {
 	indexes?: {
 		[key: string]: IndexDefinition;
 	};
 	attributes: {
 		[keys: string]: "S" | "N";
 	};
-	billing?: "PROVISIONED" | "PAY_PER_REQUEST";
-	RCU: number;
-	WCU: number;
-}
+} & (CreateTableProvisionedProps | CreateTablePPRProps);
 
 /**
  * Gylfie Dynamo Service
@@ -86,36 +94,64 @@ export interface CreateTableProps extends TableProps {
  */
 // @ServiceState(8000, "LOCAL_DYNAMO_PORT")
 export class DynamoService extends BaseService {
-	public dynamoDB: DynamoDBClient;
+	public dynamoDB!: DynamoDBClient;
+	public dynamoDBDocument!: DynamoDBDocument;
 	private port: number;
 	public tables: { [key: string]: Table } = {};
-	constructor(props?: DynamoServiceProps) {
+	constructor(private props?: DynamoServiceProps) {
 		super();
 		this.port =
 			props?.port ??
 			(parseInt(process.env.LOCAL_DYNAMO_PORT ?? "") ||
 				LOCAL_DYNAMO_PORT);
-		this.dynamoDB = new DynamoDBClient({
-			region: props?.region ?? process.env.DYNAMO_REGION ?? "eu-west-1",
-			credentials: props?.credentials ?? fromEnv(),
-		});
-		if (this.isLocal()) {
-			this.isLocalActive(this.port).then((active) => {
-				if (active) {
-					this.dynamoDB = new DynamoDBClient({
-						endpoint: `http://localhost:${this.port}`,
-						region:
-							props?.region ??
-							process.env.DYNAMO_REGION ??
-							"eu-west-1",
-						credentials: props?.credentials ?? fromEnv(),
-					});
-				}
-			});
-		}
 		props?.tables?.forEach((val) => {
 			this.tables[val.name] = new Table(val);
 		});
+
+		if (this.isLocal()) {
+			this.state = State.LOCAL;
+			this.isLocalActive(this.port).then((active) => {
+				if (active) {
+					props?.logger?.info(
+						`DynamoService (${this.state}): Local Is ACTIVE`
+					);
+				} else {
+					props?.logger?.warn(
+						`DynamoService (${this.state}): Local Is INACTIVE`
+					);
+				}
+				this.dynamoDB = new DynamoDBClient({
+					endpoint: `http://localhost:${this.port}`,
+					region:
+						props?.region ??
+						process.env.DYNAMO_REGION ??
+						DYNAMO_REGION,
+					credentials: props?.credentials ?? fromEnv(),
+				});
+				props?.logger?.info(
+					`DynamoService (${this.state}): DynamoDBClient Initialized`
+				);
+				this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
+				props?.logger?.info(
+					`DynamoService (${this.state}): DynamoDBDocument Initialized`
+				);
+			});
+			return;
+		}
+
+		this.state = State.ONLINE;
+		this.dynamoDB = new DynamoDBClient({
+			region: props?.region ?? process.env.DYNAMO_REGION ?? DYNAMO_REGION,
+			credentials: props?.credentials ?? fromEnv(),
+		});
+
+		props?.logger?.info(
+			`DynamoService (${this.state}): DynamoDBClient Initialized`
+		);
+		this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
+		props?.logger?.info(
+			`DynamoService (${this.state}): DynamoDBDocument Initialized`
+		);
 		return;
 	}
 
@@ -180,12 +216,11 @@ export class DynamoService extends BaseService {
 							}),
 							Projection:
 								typeof val.projection == "string"
-									? { Projectionentity: val.projection }
+									? { ProjectionType: val.projection }
 									: {
 											NonKeyAttributes:
 												val.projection.attributes,
-											Projectionentity:
-												val.projection.type,
+											ProjectionType: val.projection.type,
 									  },
 						};
 					});
@@ -204,12 +239,11 @@ export class DynamoService extends BaseService {
 							}),
 							Projection:
 								typeof val.projection == "string"
-									? { Projectionentity: val.projection }
+									? { ProjectionType: val.projection }
 									: {
 											NonKeyAttributes:
 												val.projection.attributes,
-											Projectionentity:
-												val.projection.type,
+											ProjectionType: val.projection.type,
 									  },
 						};
 					});
@@ -220,26 +254,39 @@ export class DynamoService extends BaseService {
 				KeySchema,
 				BillingMode,
 				ProvisionedThroughput: {
-					ReadCapacityUnits: props.RCU,
-					WriteCapacityUnits: props.WCU,
+					ReadCapacityUnits: (props as any).RCU,
+					WriteCapacityUnits: (props as any).WCU,
 				},
 				GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
 				LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
 			});
-			await this.dynamoDB.send(
-				new CreateTableCommand({
-					TableName: props.name,
-					AttributeDefinitions,
-					KeySchema,
-					BillingMode,
-					ProvisionedThroughput: {
-						ReadCapacityUnits: props.RCU,
-						WriteCapacityUnits: props.WCU,
-					},
-					GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
-					LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
-				})
-			);
+			if (props.billing == "PAY_PER_REQUEST") {
+				await this.dynamoDB.send(
+					new CreateTableCommand({
+						TableName: props.name,
+						AttributeDefinitions,
+						KeySchema,
+						BillingMode,
+						GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
+						LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
+					})
+				);
+			} else {
+				await this.dynamoDB.send(
+					new CreateTableCommand({
+						TableName: props.name,
+						AttributeDefinitions,
+						KeySchema,
+						BillingMode,
+						ProvisionedThroughput: {
+							ReadCapacityUnits: props.RCU,
+							WriteCapacityUnits: props.WCU,
+						},
+						GlobalSecondaryIndexes: GSIs.length ? GSIs : undefined,
+						LocalSecondaryIndexes: LSIs.length ? LSIs : undefined,
+					})
+				);
+			}
 			return;
 		} catch (err) {
 			throw this.errorHandler(err);
@@ -377,9 +424,9 @@ export class DynamoService extends BaseService {
 				throw new Error("Access has not been defined");
 			}
 
-			let rawData = undefined;
-			// !(options?.cache?.ignoreCache == true) &&
-			// this.cacheService?.get({ key });
+			let rawData =
+				!(options?.cache?.ignoreCache == true) &&
+				this.props?.cacheService?.get({ key });
 			let response;
 
 			if (!rawData) {
@@ -398,7 +445,9 @@ export class DynamoService extends BaseService {
 						Limit: options?.limit,
 						ConsistentRead: options?.consistentRead,
 						ExclusiveStartKey: options?.exclusiveStartKey
-							? marshall(options?.exclusiveStartKey)
+							? marshall(options?.exclusiveStartKey, {
+									removeUndefinedValues: true,
+							  })
 							: undefined,
 						ReturnConsumedCapacity:
 							options?.returnConsumedCapacity ?? "TOTAL",
@@ -411,11 +460,12 @@ export class DynamoService extends BaseService {
 				}
 				rawData = result;
 				// Account for last evaluated Key
-				// this.cacheService?.add({
-				// 	key,
-				// 	value: result,
-				// 	duration: options?.cache?.duration,
-				// });
+				await this.cache({
+					key,
+					value: result,
+					tableName: TableName,
+					cache: options?.cache,
+				});
 			}
 
 			if (rawData && rawData.length) {
@@ -450,6 +500,40 @@ export class DynamoService extends BaseService {
 			throw this.errorHandler(err);
 		}
 	}
+
+	public async cache(props: {
+		key: Key;
+		tableName: string;
+		value: {
+			[key: string]: AttributeValue;
+		}[];
+		cache?: boolean | { duration?: number };
+	}) {
+		const { key, value, cache, tableName } = props;
+		const shouldCache = new Boolean(
+			cache ?? this.tables[tableName].structure.cache ?? this.props?.cache
+		);
+		if (!shouldCache) {
+			return null;
+		}
+		const cacheObject: { duration?: number } = merge(
+			{},
+			isObject(this.props?.cache) || {},
+			isObject(this.tables[tableName].structure.cache) || {},
+			isObject(cache) || {}
+		);
+		if (!this.props?.cacheService) {
+			this.props?.logger?.warn(
+				`DynamoService (${this.state}): CacheService has not been initialized`
+			);
+		}
+		return this.props?.cacheService?.add({
+			key,
+			value,
+			duration: cacheObject.duration,
+		});
+	}
+
 	/**
 	 * Get all items in a Table
 	 * @param  {string} TableName - Table from items to be retrived from
@@ -489,10 +573,11 @@ export class DynamoService extends BaseService {
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
 		const { tableName: TableName, entity, item } = props;
-		// | Partial<T>
 		const Item: {
 			[key: string]: AttributeValue;
-		} = marshall(this.tables[TableName].toDynamoMap(item));
+		} = marshall(this.tables[TableName].toDynamoMap(item), {
+			removeUndefinedValues: true,
+		});
 
 		const {
 			// ExpressionAttributeValues,
@@ -535,9 +620,7 @@ export class DynamoService extends BaseService {
 					return {
 						data: new entityIsEntity(
 							this.tables[TableName].toEntityInterface(
-								unmarshall(
-									result as { [key: string]: AttributeValue }
-								)
+								unmarshall(result)
 							)
 						) as unknown as TReturn,
 						consumedCapacity: response.ConsumedCapacity,
@@ -601,7 +684,7 @@ export class DynamoService extends BaseService {
 			);
 			const Key: {
 				[key: string]: AttributeValue;
-			} = marshall(retrievedKey);
+			} = marshall(retrievedKey, { removeUndefinedValues: true });
 
 			const updateMap = this.tables[TableName].toUpdateMap(item);
 
@@ -767,7 +850,9 @@ export class DynamoService extends BaseService {
 				);
 			}
 
-			const Key = marshall(accessProps.key as DynamoDBMap);
+			const Key = marshall(accessProps.key as DynamoDBMap, {
+				removeUndefinedValues: true,
+			});
 
 			const {
 				ExpressionAttributeValues,

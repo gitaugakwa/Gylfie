@@ -1,5 +1,6 @@
 export * from "./authentication";
 export * from "./base";
+export * from "./cache";
 export * from "./cognito";
 export * from "./dynamo";
 export * from "./lambda";

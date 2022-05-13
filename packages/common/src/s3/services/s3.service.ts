@@ -11,6 +11,7 @@ import {
 	PutObjectCommandInput,
 	CopyObjectCommand,
 	ObjectCannedACL,
+	DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import {
 	createPresignedPost,
@@ -33,10 +34,13 @@ import { Readable } from "stream";
 import { fromEnv } from "@aws-sdk/credential-providers";
 import { RequestPresigningArguments } from "@aws-sdk/types";
 import { Conditions } from "@aws-sdk/s3-presigned-post/dist-types/types";
-import { LOCAL_S3_PORT } from "../constants";
+import { LOCAL_S3_PORT, S3_REGION } from "../constants";
+import { compact, concat, join, map } from "lodash";
 
 export interface S3ServiceProps extends BaseServiceProps {
 	buckets: BucketProps[];
+	port?: number;
+	region?: string;
 }
 
 // type ACLs =
@@ -51,7 +55,7 @@ export interface S3ServiceProps extends BaseServiceProps {
 
 // @ServiceState(4566, "LOCAL_S3_PORT")
 export class S3Service extends BaseService {
-	private S3: S3Client;
+	private S3!: S3Client;
 	protected buckets: { [key: string]: Bucket } = {};
 	private port: number;
 	constructor(props?: S3ServiceProps) {
@@ -64,24 +68,35 @@ export class S3Service extends BaseService {
 		});
 		// the default local setup is Hybrid
 		// Since it's async to determine if the port is in use
+
+		if (this.isLocal()) {
+			this.isLocalActive(this.port).then((active) => {
+				if (active) {
+					props?.logger?.info(
+						`S3Service (${this.state}): Local Is ACTIVE`
+					);
+				} else {
+					props?.logger?.warn(
+						`S3Service (${this.state}): Local Is INACTIVE`
+					);
+				}
+				this.S3 = new S3Client({
+					endpoint: `http://localhost:${this.port}`,
+					region: props?.region ?? process.env.S3_REGION ?? S3_REGION,
+					credentials: props?.credentials ?? fromEnv(),
+				});
+				props?.logger?.info(
+					`S3Service (${this.state}): DynamoDBClient Initialized`
+				);
+			});
+			return;
+		}
+		this.state = State.ONLINE;
 		this.S3 = new S3Client({
 			region: props?.region ?? process.env.S3_REGION ?? "eu-west-1",
 			credentials: props?.credentials ?? fromEnv(),
 		});
-		if (this.isLocal()) {
-			this.isLocalActive(this.port).then((active) => {
-				if (active) {
-					this.S3 = new S3Client({
-						endpoint: `http://localhost:${this.port}`,
-						region:
-							props?.region ??
-							process.env.S3_REGION ??
-							"eu-west-1",
-						credentials: props?.credentials ?? fromEnv(),
-					});
-				}
-			});
-		}
+		props?.logger?.info(`S3Service (${this.state}): S3Client Initialized`);
 	}
 
 	// @States(State.Local, State.Online)
@@ -126,14 +141,26 @@ export class S3Service extends BaseService {
 	// It'll need a path for generating the signature and stuff
 	// @States(State.Local, State.Online)
 	public async putPresignedURL(
-		props: { bucket: string; key: string; ACL?: ObjectCannedACL }, // PutObjectCommandInput
+		props: {
+			bucket: string;
+			key: string;
+			ACL?: ObjectCannedACL;
+			contentType?: string;
+			contentLength?: number;
+		}, // PutObjectCommandInput
 		options?: Omit<RequestPresigningArguments, "expiresIn"> & {
 			expiresIn?: Duration | number;
 		}
 	): Promise<string> {
 		// Add parameter for type
 		// Since there are like 2 presigned urls that can be made
-		const { bucket: Bucket, key: Key, ACL } = props;
+		const {
+			bucket: Bucket,
+			key: Key,
+			ACL,
+			contentLength: ContentLength,
+			contentType: ContentType,
+		} = props;
 		let { expiresIn } = options ?? {};
 		if (expiresIn) {
 			expiresIn =
@@ -148,6 +175,8 @@ export class S3Service extends BaseService {
 					Bucket,
 					Key,
 					ACL,
+					ContentLength,
+					ContentType,
 				}),
 				{
 					// Conditions: [["content-length-range", 0, 10485760]], // Max 10 MB
@@ -225,6 +254,40 @@ export class S3Service extends BaseService {
 		}
 	}
 
+	public async copy(props: {
+		from: { bucket: string; key: string };
+		to: { bucket?: string; key: string };
+	}) {
+		const source = join(
+			concat(
+				compact(props.from.bucket.split("/")),
+				compact(props.from.key.split("/"))
+			),
+			"/"
+		);
+		const { key: Key, bucket: Bucket = props.from.bucket } = props.to;
+		try {
+			const result = await this.S3.send(
+				new CopyObjectCommand({ CopySource: source, Bucket, Key })
+			);
+		} catch (err) {
+			// throw new GylfieError(err);
+			throw new Error(err as any); // Fix
+		}
+	}
+
+	public async delete(props: { bucket: string; key: string }) {
+		const { key: Key, bucket: Bucket } = props;
+		try {
+			const result = await this.S3.send(
+				new DeleteObjectCommand({ Bucket, Key })
+			);
+		} catch (err) {
+			// throw new GylfieError(err);
+			throw new Error(err as any); // Fix
+		}
+	}
+
 	// Developer Methods
 	// @States(State.Local, State.Hybrid, State.Online)
 	public async listObjects(
@@ -273,7 +336,7 @@ export class S3Service extends BaseService {
 	public async listBuckets() {
 		try {
 			const { Buckets } = await this.S3.send(new ListBucketsCommand({}));
-			return Buckets ?? [];
+			return map(Buckets ?? [], (bucket) => ({ ...bucket }));
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
