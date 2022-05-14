@@ -199,22 +199,43 @@ export class GylfieFunction extends GylfieResource {
 		);
 		merge(answers, properties);
 
-		const func: { [key: string]: FunctionResource } = {
-			[answers.name]: {
-				type: answers.type,
-				stages: {},
-				properties: {
-					path: GylfieCommand.getPath(undefined, answers),
-					startCommand: answers.startCommand,
-					handler: answers.handler,
-					runtime: answers.runtime,
-					buildCommand: answers.buildCommand,
-					watchAppend: answers.watchAppend,
+		if (answers.stage) {
+			const stage = {
+				[answers.name]: {
+					type: answers.type,
+					stage: {
+						[answers.stage]: {
+							path: GylfieCommand.getPath(undefined, answers),
+							startCommand: answers.startCommand,
+							handler: answers.handler,
+							runtime: answers.runtime,
+							buildCommand: answers.buildCommand,
+							watchAppend: answers.watchAppend,
+						},
+					},
+					// properties: {},
 				},
-			},
-		};
+			};
+			context.addToConfig({ resources: stage });
+			return stage;
+		} else {
+			const func: { [key: string]: FunctionResource } = {
+				[answers.name]: {
+					type: answers.type,
+					stages: {},
+					properties: {
+						path: GylfieCommand.getPath(undefined, answers),
+						startCommand: answers.startCommand,
+						handler: answers.handler,
+						runtime: answers.runtime,
+						buildCommand: answers.buildCommand,
+						watchAppend: answers.watchAppend,
+					},
+				},
+			};
 
-		context.addToConfig({ resources: func });
-		return func;
+			context.addToConfig({ resources: func });
+			return func;
+		}
 	}
 }

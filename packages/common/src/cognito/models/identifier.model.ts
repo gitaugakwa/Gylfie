@@ -1,5 +1,5 @@
 import { validate } from "uuid";
-import * as EmailValidator from "email-validator";
+import isEmail from "validator/lib/isEmail";
 // export enum IdentifierType {
 // 	ID,
 // 	// FriendlyID,
@@ -8,7 +8,7 @@ import * as EmailValidator from "email-validator";
 
 export class AccessValidator {
 	public static email(text: string): boolean {
-		return EmailValidator.validate(text);
+		return isEmail(text);
 	}
 	public static id(text: string): boolean {
 		return validate(text);

@@ -1,11 +1,19 @@
 import { Context } from "aws-lambda";
-import { Logger, createLogger, config, format, transports } from "winston";
+import {
+	Logger,
+	createLogger,
+	config,
+	format,
+	transports,
+	addColors,
+} from "winston";
 
 import { LoggerTransport } from "../transports";
 import { BaseService, BaseServiceProps, State } from "../../base/services";
 import { InternalLog, Log, LogLevel, LogLevelType } from "../models";
 import TransportStream from "winston-transport";
 import { GylfieError } from "../../base/errors";
+import { Colorizer } from "logform";
 
 // Should be able to generate the dedicated format for any external library being used
 // Currently, only NestJS is supported
@@ -72,39 +80,92 @@ export class LoggerService extends BaseService {
 	private logger: Logger;
 	private transport: LoggerTransport;
 	private context?: GylfieContext;
+	private colorizer: Colorizer;
 	private _logs: Promise<void>[] = [];
 
 	constructor(private props?: LoggerServiceProps) {
 		super();
 		let consoleTransports: TransportStream[];
+		this.colorizer = format.colorize();
 		if (props?.console == true) {
-			consoleTransports = [new transports.Console({})];
+			consoleTransports = [
+				new transports.Console({
+					format: format.combine(
+						// format.colorize(),
+						format.simple(),
+						format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+						// format.align(),
+						format.printf((info) => {
+							const { timestamp, level, message, ...args } = info;
+							let { service = "GLOBAL", state = "INERT" } = args;
+							if (state) {
+								state = `(${state})`.concat(
+									...new Array<string>(6 - state.length).fill(
+										" "
+									)
+								);
+							}
+							return `${timestamp} ${this.colorizer.colorize(
+								level,
+								`${state} [${service}] \t${message}`
+							)}`;
+						})
+					),
+				}),
+			];
 		} else if (!props?.console) {
-			consoleTransports = [new transports.Console({ level: "error" })];
+			consoleTransports = [
+				new transports.Console({
+					format: format.combine(format.colorize(), format.simple()),
+					level: "error",
+				}),
+			];
 		} else {
 			const level = this.getHighestLevel(props.console);
-			consoleTransports = [new transports.Console({ level })];
+			consoleTransports = [
+				new transports.Console({
+					format: format.combine(format.colorize(), format.simple()),
+					level,
+				}),
+			];
 		}
 		this.logger = createLogger({
 			levels: config.syslog.levels,
 			// level: LogLevel["EMERGENCY"],
-			format: format.combine(
-				format.timestamp(),
-				format.json(),
-				format.metadata({
-					fillExcept: ["message", "level", "timestamp", "label"],
-				}),
-				format.prettyPrint()
-			),
 			transports: [
 				// Not sure if we need that
 				// make a debug transport
-				(this.transport = new LoggerTransport()),
+				(this.transport = new LoggerTransport({
+					format: format.combine(
+						format.timestamp(),
+						format.json(),
+						format.metadata({
+							fillExcept: [
+								"message",
+								"level",
+								"timestamp",
+								"label",
+							],
+						}),
+						format.prettyPrint()
+					),
+				})),
 				...consoleTransports,
 			],
 		});
+		config.addColors({
+			"debug": config.npm.colors.debug,
+			"warning": config.npm.colors.warn,
+			"info": config.npm.colors.info,
+			"error": config.npm.colors.error,
+		});
 
-		this.state = State.LOCAL;
+		this.state = State.INERT;
+		props?.logger?.info({
+			message: "Initialized",
+			state: this.state,
+			service: "LoggerService",
+		});
 	}
 
 	// assuming that when a lambda is running, it runs per request, i.e

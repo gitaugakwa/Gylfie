@@ -1,5 +1,13 @@
 import { AttributeValue } from "@aws-sdk/client-dynamodb";
-import { cloneDeep, concat, reduce } from "lodash";
+import {
+	cloneDeep,
+	concat,
+	entries,
+	filter,
+	fromPairs,
+	keys,
+	reduce,
+} from "lodash";
 import "reflect-metadata";
 import { getMetadata } from "../../base/metadata";
 import { EntityProps } from "../decorators";
@@ -88,16 +96,16 @@ export class Table {
 		placeholderValues?: DynamoDBMap
 	): AccessProperties {
 		key = cloneDeep(key);
-		if (Object.entries(key).length == 0) {
+		if (entries(key).length == 0) {
 			throw new Error("Key provided is empty");
 		}
-		const indexes = Object.keys(key).map((key) => {
+		const indexes = keys(key).map((key) => {
 			return this.findIndexFromKeyName(key);
 		});
 
 		if (placeholderValues) {
 			const place = new Placeholder(placeholderValues);
-			for (const [name, value] of Object.entries(key)) {
+			for (const [name, value] of entries(key)) {
 				if (typeof value == "number") {
 					continue;
 				}
@@ -113,7 +121,7 @@ export class Table {
 		}
 
 		// Only the PartitionKey was provided
-		if (indexes.length == 1 && Object.entries(key).length == 1) {
+		if (indexes.length == 1 && entries(key).length == 1) {
 			const pkIndexes = indexes[0].filter(
 				({ attributeType }) => attributeType == ATTRIBUTE_TYPE.PARTITION
 			);
@@ -222,9 +230,9 @@ export class Table {
 		}
 
 		if (this.structure.indexes) {
-			const secIndexes = Object.entries(this.structure.indexes)
+			const secIndexes = entries(this.structure.indexes)
 				.filter(([indexName, value]) => {
-					const instances = Object.entries(value).filter(
+					const instances = entries(value).filter(
 						([indexProp, value]) => {
 							if (indexProp == "type") {
 								return false;
@@ -313,24 +321,24 @@ export class Table {
 				indexes[indexName];
 			const {
 				type,
-				partitionKey: indexpkName,
-				sortKey: indexskName,
+				partitionKey: indexPKName,
+				sortKey: indexSKName,
 			} = this.structure.indexes[indexName];
 			const values: [string, string | number][] = [];
 
 			switch (type) {
 				case IndexType.GSI: {
-					values.push([indexpkName, place.replaceString(indexPk)]);
-					if (indexskName && !indexSk) {
+					values.push([indexPKName, place.replaceString(indexPk)]);
+					if (indexSKName && !indexSk) {
 						throw new Error(
 							`GSI:${indexName} requires SortKey which is not provided in Entity:${name}`
 						);
 					}
-					if (!indexskName || !indexSk) {
+					if (!indexSKName || !indexSk) {
 						return values;
 					}
 					values.push([
-						indexskName,
+						indexSKName,
 						typeof indexSk == "number"
 							? indexSk
 							: place.replaceString(indexSk),
@@ -361,8 +369,8 @@ export class Table {
 				indexes[indexName];
 			const {
 				type,
-				partitionKey: indexpkName,
-				sortKey: indexskName,
+				partitionKey: indexPKName,
+				sortKey: indexSKName,
 			} = this.structure.indexes[indexName];
 			const values: [string, string | number][] = [];
 
@@ -375,15 +383,15 @@ export class Table {
 					) {
 						const val = place.replaceString(indexPk);
 						if (val) {
-							values.push([indexpkName, val]);
+							values.push([indexPKName, val]);
 						}
 					}
-					if (indexskName && !indexSk) {
+					if (indexSKName && !indexSk) {
 						throw new Error(
 							`GSI:${indexName} requires SortKey which is not provided in Entity:${name}`
 						);
 					}
-					if (!indexskName || !indexSk) {
+					if (!indexSKName || !indexSk) {
 						return values;
 					}
 					if (
@@ -400,10 +408,10 @@ export class Table {
 						if (typeof indexSk == "string") {
 							const val = place.replaceString(indexSk);
 							if (val) {
-								values.push([indexskName, val]);
+								values.push([indexSKName, val]);
 							}
 						} else {
-							values.push([indexskName, indexSk]);
+							values.push([indexSKName, indexSk]);
 						}
 					}
 					return values;
@@ -420,7 +428,7 @@ export class Table {
 		const attributes: [string, DynamoDBValue][] = [];
 		const excludeAll = getMetadata<boolean>(entity, "excludeAll");
 		if (excludeAll) {
-			Object.entries(entity).forEach(([name, value]) => {
+			entries(entity).forEach(([name, value]) => {
 				if (
 					// Reorder for optimization
 					typeof value != "function" &&
@@ -431,7 +439,7 @@ export class Table {
 				}
 			});
 		} else {
-			Object.entries(entity).forEach(([name, value]) => {
+			entries(entity).forEach(([name, value]) => {
 				if (
 					// Reorder for optimization
 					typeof value != "function" &&
@@ -448,10 +456,10 @@ export class Table {
 	// there's a way we can create a regex that can then extract values from the ones given
 
 	private parseKeyObject(key: Key) {
-		if (Object.entries(key).length == 0) {
+		if (entries(key).length == 0) {
 			throw new Error("Key provided is empty");
 		}
-		const indexes = Object.entries(key).map(([name, value]) => {
+		const indexes = entries(key).map(([name, value]) => {
 			return this.findIndexFromKeyName(name);
 		});
 		if (indexes.length == 1) {
@@ -499,7 +507,7 @@ export class Table {
 
 		if (indexes) {
 			const indexesKeys: [string, [string, string | number][]][] =
-				Object.entries(indexes)
+				entries(indexes)
 					.filter(([indexName, indexMap]) => {
 						if (
 							this.structure.indexes &&
@@ -557,11 +565,8 @@ export class Table {
 					);
 			Object.assign(
 				keys,
-				Object.fromEntries(
-					indexesKeys.map(([name, keys]) => [
-						name,
-						Object.fromEntries(keys),
-					])
+				fromPairs(
+					indexesKeys.map(([name, keys]) => [name, fromPairs(keys)])
 				)
 			);
 		}
@@ -576,16 +581,18 @@ export class Table {
 		const entityStructure = getMetadata(entity, "entityStructure");
 		if (entityStructure) {
 			const indexes: [string, string | number][] =
-				Object.keys(this.structure.indexes ?? {}).flatMap((name) =>
+				keys(this.structure.indexes ?? {}).flatMap((name) =>
 					this.parseIndexKey(name, entity)
 				) ?? [];
 
 			// Primary Key > Index Keys > Attributes
-			return Object.fromEntries([
-				...this.parseAttributes(entity),
-				...indexes,
-				...this.parsePrimaryKey(entity),
-			]);
+			return fromPairs(
+				concat(
+					this.parseAttributes(entity),
+					indexes,
+					this.parsePrimaryKey(entity)
+				)
+			);
 		}
 
 		return {};
@@ -597,42 +604,37 @@ export class Table {
 		const entityStructure = getMetadata(entity, "entityStructure");
 		if (entityStructure) {
 			const indexes: [string, string | number][] =
-				Object.keys(this.structure.indexes ?? {}).flatMap((name) =>
+				keys(this.structure.indexes ?? {}).flatMap((name) =>
 					this.parseUpdateIndexKey(name, entity)
 				) ?? [];
 
 			const excludeAll = getMetadata<boolean>(entity, "excludeAll");
 
 			let baseUpdate: Update;
-			const entries = Object.entries(entity)
-				.filter(([key, value]) => {
-					if (excludeAll) {
-						if (
-							typeof value != "function" &&
-							typeof value != "symbol" &&
-							getMetadata<boolean>(entity, "include", key)
-						) {
-							return true;
-						}
-					} else {
-						if (
-							// Reorder for optimization
-							typeof value != "function" &&
-							typeof value != "symbol" &&
-							!getMetadata<boolean>(entity, "exclude", key)
-						) {
-							return true;
-						}
+			const filteredEntries = filter(entries(entity), ([key, value]) => {
+				if (excludeAll) {
+					if (
+						typeof value != "function" &&
+						typeof value != "symbol" &&
+						getMetadata<boolean>(entity, "include", key) &&
+						!getMetadata<boolean>(entity, "const", key)
+					) {
+						return true;
 					}
-					return false;
-				})
-				.filter(([key, value]) => {
-					if (getMetadata<boolean>(entity, "const", key)) {
-						return false;
+				} else {
+					if (
+						// Reorder for optimization
+						typeof value != "function" &&
+						typeof value != "symbol" &&
+						!getMetadata<boolean>(entity, "exclude", key) &&
+						!getMetadata<boolean>(entity, "const", key)
+					) {
+						return true;
 					}
-					return true;
-				});
-			if (!entries.length) {
+				}
+				return false;
+			});
+			if (!filteredEntries.length) {
 				if (!indexes.length) {
 					return {
 						ExpressionAttributeValues: {},
@@ -678,18 +680,18 @@ export class Table {
 					ExpressionAttributeNames,
 				};
 			}
-			if (entries[0] instanceof Update) {
-				baseUpdate = entries[0];
+			if (filteredEntries[0] instanceof Update) {
+				baseUpdate = filteredEntries[0];
 			} else {
 				baseUpdate = new Update({
 					type: UpdateOptions.set,
-					value: entries[0][1] as DynamoDBValue,
-					key: entries[0][0],
+					value: filteredEntries[0][1] as DynamoDBValue,
+					key: filteredEntries[0][0],
 				});
 			}
-			entries.shift();
+			filteredEntries.shift();
 			const update = reduce(
-				concat(entries, indexes),
+				concat(filteredEntries, indexes),
 				(a, b) => {
 					if (b[1] instanceof Update || this.isUpdate(b[1])) {
 						return a.and(b[1], b[0]);

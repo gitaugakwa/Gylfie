@@ -235,14 +235,16 @@ export class GylfieDatabase extends GylfieResource {
 			}
 		}
 
-		mkdirSync(props.path);
+		if (!existsSync(props.path)) {
+			mkdirSync(props.path, { recursive: true });
+		}
 
 		if (answers.stage) {
 			const stage = {
 				[answers.name]: {
 					type: answers.type,
 					stages: { [answers.stage]: props },
-					properties: {},
+					// properties: {},
 				},
 			};
 			context.addToConfig({

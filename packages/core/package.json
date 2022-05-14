@@ -1,6 +1,6 @@
 {
 	"name": "@gylfie/core",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"type": "commonjs",
 	"description": "Gylfie Javascript Core Library",
 	"main": "lib/index.js",

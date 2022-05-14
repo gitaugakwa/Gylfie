@@ -1,6 +1,11 @@
 # Change Log - @gylfie/common
 
-This log was last generated on Fri, 13 May 2022 13:23:21 GMT and should not be manually modified.
+This log was last generated on Sat, 14 May 2022 12:00:02 GMT and should not be manually modified.
+
+## 0.0.8
+Sat, 14 May 2022 12:00:02 GMT
+
+_Version update only_
 
 ## 0.0.7
 Fri, 13 May 2022 13:23:21 GMT

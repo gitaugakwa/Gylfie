@@ -37,7 +37,11 @@ export class CacheService extends BaseService {
 	constructor(private props?: CacheServiceProps) {
 		super();
 		this.state = State.INERT;
-		props?.logger?.info(`CacheService (${this.state}): Initialized`);
+		props?.logger?.info({
+			message: "Initialized",
+			state: this.state,
+			service: "CacheService",
+		});
 	}
 
 	public add(props: {

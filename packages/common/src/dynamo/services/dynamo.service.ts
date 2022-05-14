@@ -53,7 +53,15 @@ import {
 	TransactionConflictError,
 } from "../errors";
 import { AccessPatternsClass, Entity } from "../decorators";
-import { capitalize, isObject, map, merge } from "lodash";
+import {
+	capitalize,
+	fromPairs,
+	isObject,
+	map,
+	merge,
+	some,
+	values,
+} from "lodash";
 import { CacheService, CacheServiceProps } from "../../cache/services";
 import { DYNAMO_REGION, LOCAL_DYNAMO_PORT } from "../constants";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
@@ -112,29 +120,61 @@ export class DynamoService extends BaseService {
 			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
-					props?.logger?.info(
-						`DynamoService (${this.state}): Local Is ACTIVE`
+					props?.logger?.info({
+						message: "Local Is Active",
+						state: this.state,
+						service: "DynamoService",
+					});
+					this.dynamoDB = new DynamoDBClient({
+						endpoint: `http://localhost:${this.port}`,
+						region:
+							props?.region ??
+							process.env.DYNAMO_REGION ??
+							DYNAMO_REGION,
+						credentials: props?.credentials ?? fromEnv(),
+					});
+					props?.logger?.info({
+						message: "DynamoDBClient Initialized",
+						state: this.state,
+						service: "DynamoService",
+					});
+					this.dynamoDBDocument = DynamoDBDocument.from(
+						this.dynamoDB
 					);
+					props?.logger?.info({
+						message: "DynamoDBDocument Initialized",
+						state: this.state,
+						service: "DynamoService",
+					});
 				} else {
-					props?.logger?.warn(
-						`DynamoService (${this.state}): Local Is INACTIVE`
+					props?.logger?.warn({
+						message: "Local Is INACTIVE",
+						state: this.state,
+						service: "DynamoService",
+					});
+					this.state = State.ONLINE;
+					this.dynamoDB = new DynamoDBClient({
+						region:
+							props?.region ??
+							process.env.DYNAMO_REGION ??
+							DYNAMO_REGION,
+						credentials: props?.credentials ?? fromEnv(),
+					});
+
+					props?.logger?.info({
+						message: "DynamoDBClient Initialized",
+						state: this.state,
+						service: "DynamoService",
+					});
+					this.dynamoDBDocument = DynamoDBDocument.from(
+						this.dynamoDB
 					);
+					props?.logger?.info({
+						message: "DynamoDBDocument Initialized",
+						state: this.state,
+						service: "DynamoService",
+					});
 				}
-				this.dynamoDB = new DynamoDBClient({
-					endpoint: `http://localhost:${this.port}`,
-					region:
-						props?.region ??
-						process.env.DYNAMO_REGION ??
-						DYNAMO_REGION,
-					credentials: props?.credentials ?? fromEnv(),
-				});
-				props?.logger?.info(
-					`DynamoService (${this.state}): DynamoDBClient Initialized`
-				);
-				this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
-				props?.logger?.info(
-					`DynamoService (${this.state}): DynamoDBDocument Initialized`
-				);
 			});
 			return;
 		}
@@ -145,13 +185,17 @@ export class DynamoService extends BaseService {
 			credentials: props?.credentials ?? fromEnv(),
 		});
 
-		props?.logger?.info(
-			`DynamoService (${this.state}): DynamoDBClient Initialized`
-		);
+		props?.logger?.info({
+			message: "DynamoDBClient Initialized",
+			state: this.state,
+			service: "DynamoService",
+		});
 		this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
-		props?.logger?.info(
-			`DynamoService (${this.state}): DynamoDBDocument Initialized`
-		);
+		props?.logger?.info({
+			message: "DynamoDBDocument Initialized",
+			state: this.state,
+			service: "DynamoService",
+		});
 		return;
 	}
 
@@ -404,6 +448,14 @@ export class DynamoService extends BaseService {
 			key,
 			placeholderValues,
 		} = props;
+		const {
+			cache = { ignoreCache: true },
+			consistentRead,
+			exclusiveStartKey,
+			limit,
+			returnConsumedCapacity = "TOTAL",
+			scanIndexForward,
+		} = options ?? {};
 		try {
 			let accessProps: AccessProperties;
 
@@ -412,21 +464,20 @@ export class DynamoService extends BaseService {
 					key,
 					placeholderValues
 				);
-				key = accessProps.key;
+				// key = accessProps.key;
 			} else if (accessPattern) {
 				key = this.getAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
 				);
-				key = accessProps.key;
 			} else {
 				throw new Error("Access has not been defined");
 			}
+			key = accessProps.key;
 
 			let rawData =
-				!(options?.cache?.ignoreCache == true) &&
-				this.props?.cacheService?.get({ key });
+				!cache.ignoreCache && this.props?.cacheService?.get({ key });
 			let response;
 
 			if (!rawData) {
@@ -442,38 +493,37 @@ export class DynamoService extends BaseService {
 						IndexName,
 						KeyConditionExpression,
 						ExpressionAttributeValues,
-						Limit: options?.limit,
-						ConsistentRead: options?.consistentRead,
-						ExclusiveStartKey: options?.exclusiveStartKey
-							? marshall(options?.exclusiveStartKey, {
+						Limit: limit,
+						ConsistentRead: consistentRead,
+						ExclusiveStartKey: exclusiveStartKey
+							? marshall(exclusiveStartKey, {
 									removeUndefinedValues: true,
 							  })
 							: undefined,
-						ReturnConsumedCapacity:
-							options?.returnConsumedCapacity ?? "TOTAL",
-						ScanIndexForward: options?.scanIndexForward,
+						ReturnConsumedCapacity: returnConsumedCapacity,
+						ScanIndexForward: scanIndexForward,
 					})
 				);
 				const result = response.Items;
-				if (!result) {
-					throw new ItemNotFoundError();
+				if (result) {
+					rawData = result;
+					// Account for last evaluated Key
+					await this.cache({
+						key,
+						value: result,
+						tableName: TableName,
+						cache,
+					});
 				}
-				rawData = result;
-				// Account for last evaluated Key
-				await this.cache({
-					key,
-					value: result,
-					tableName: TableName,
-					cache: options?.cache,
-				});
 			}
 
-			if (rawData && rawData.length) {
+			let data: TReturn[] = [];
+			if (rawData) {
 				if (!isEntity(entity)) {
 					throw new Error("entity provided is not Entity");
 				}
 				const entityIsEntity = entity;
-				const data = map(rawData, (val) => {
+				data = map(rawData, (val) => {
 					return new entityIsEntity(
 						this.tables[TableName].toEntityInterface(
 							unmarshall(
@@ -484,18 +534,16 @@ export class DynamoService extends BaseService {
 						)
 					) as unknown as TReturn;
 				});
-				return {
-					data,
-					cacheHit: response ? false : true,
-					consumedCapacity: response?.ConsumedCapacity,
-					count: response?.Count,
-					lastEvaluatedKey: response?.LastEvaluatedKey
-						? unmarshall(response.LastEvaluatedKey)
-						: undefined,
-				};
 			}
-			throw new ItemNotFoundError();
-			// return this.table[TableName].get<T>(entity, key);
+			return {
+				data,
+				cacheHit: response ? false : true,
+				consumedCapacity: response?.ConsumedCapacity,
+				count: response?.Count,
+				lastEvaluatedKey: response?.LastEvaluatedKey
+					? unmarshall(response.LastEvaluatedKey)
+					: undefined,
+			};
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -523,9 +571,11 @@ export class DynamoService extends BaseService {
 			isObject(cache) || {}
 		);
 		if (!this.props?.cacheService) {
-			this.props?.logger?.warn(
-				`DynamoService (${this.state}): CacheService has not been initialized`
-			);
+			this.props?.logger?.warn({
+				message: "CacheService has not been initialized",
+				state: this.state,
+				service: "DynamoService",
+			});
 		}
 		return this.props?.cacheService?.add({
 			key,
@@ -572,10 +622,17 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { tableName: TableName, entity, item } = props;
-		const Item: {
-			[key: string]: AttributeValue;
-		} = marshall(this.tables[TableName].toDynamoMap(item), {
+		const {
+			tableName: TableName,
+			item,
+			entity = (item as any).constructor,
+		} = props;
+		const {
+			returnValues,
+			returnConsumedCapacity = "TOTAL",
+			returnItemCollectionMetrics = "SIZE",
+		} = options ?? {};
+		const Item = marshall(this.tables[TableName].toDynamoMap(item), {
 			removeUndefinedValues: true,
 		});
 
@@ -591,48 +648,60 @@ export class DynamoService extends BaseService {
 				new PutItemCommand({
 					TableName,
 					Item,
-					ReturnValues: options?.returnValues,
+					ReturnValues: returnValues,
 					ExpressionAttributeNames,
 					// ExpressionAttributeValues,
 					ConditionExpression,
-					ReturnConsumedCapacity:
-						options?.returnConsumedCapacity ?? "TOTAL",
-					ReturnItemCollectionMetrics:
-						options?.returnItemCollectionMetrics ?? "SIZE",
+					ReturnConsumedCapacity: returnConsumedCapacity,
+					ReturnItemCollectionMetrics: returnItemCollectionMetrics,
 				})
 			);
-			if (!options?.returnValues || options.returnValues == "NONE") {
-				return {
-					data: null,
-					consumedCapacity: response.ConsumedCapacity,
-					itemCollectionMetrics: response.ItemCollectionMetrics,
-				};
-			}
 
-			const result = response.Attributes;
-			if (result) {
-				// If there was an Item before in place
-				if (entity) {
-					if (!isEntity(entity)) {
-						throw new Error("entity provided is not Entity");
+			switch (returnValues) {
+				default: {
+					if (entity) {
+						if (!isEntity(entity)) {
+							throw new Error("entity provided is not Entity");
+						}
+						const entityIsEntity = entity;
+						return {
+							data: new entityIsEntity(
+								this.tables[TableName].toEntityInterface(
+									unmarshall(Item)
+								)
+							) as unknown as TReturn,
+							consumedCapacity: response.ConsumedCapacity,
+							itemCollectionMetrics:
+								response.ItemCollectionMetrics,
+						};
 					}
-					const entityIsEntity = entity;
+				}
+				case "ALL_OLD": {
+					if (entity && response.Attributes) {
+						if (!isEntity(entity)) {
+							throw new Error("entity provided is not Entity");
+						}
+						const entityIsEntity = entity;
+						return {
+							data: new entityIsEntity(
+								this.tables[TableName].toEntityInterface(
+									unmarshall(response.Attributes)
+								)
+							) as unknown as TReturn,
+							consumedCapacity: response.ConsumedCapacity,
+							itemCollectionMetrics:
+								response.ItemCollectionMetrics,
+						};
+					}
+				}
+				case "NONE": {
 					return {
-						data: new entityIsEntity(
-							this.tables[TableName].toEntityInterface(
-								unmarshall(result)
-							)
-						) as unknown as TReturn,
+						data: null,
 						consumedCapacity: response.ConsumedCapacity,
 						itemCollectionMetrics: response.ItemCollectionMetrics,
 					};
 				}
 			}
-			return {
-				data: null,
-				consumedCapacity: response.ConsumedCapacity,
-				itemCollectionMetrics: response.ItemCollectionMetrics,
-			};
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -663,7 +732,11 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const { tableName: TableName, entity, item } = props;
+		const {
+			tableName: TableName,
+			item,
+			entity = (item as any).constructor,
+		} = props;
 		// compare update times
 		// UpdatedAt should be a base attribute that then can be assigned to a different Attribute
 
@@ -677,14 +750,16 @@ export class DynamoService extends BaseService {
 		// the undefined properties will still generate values that are malformed
 		// There needs to be an option for if any of the placeholder values is undefined,
 		// the value returned is undefined at least
-		const ReturnValues = options?.returnValues || "ALL_NEW";
+		const {
+			returnValues = "ALL_NEW",
+			returnConsumedCapacity = "TOTAL",
+			returnItemCollectionMetrics = "SIZE",
+		} = options ?? {};
 		try {
-			const retrievedKey = Object.fromEntries(
+			const retrievedKey = fromPairs(
 				this.tables[TableName].parsePrimaryKey(item)
 			);
-			const Key: {
-				[key: string]: AttributeValue;
-			} = marshall(retrievedKey, { removeUndefinedValues: true });
+			const Key = marshall(retrievedKey, { removeUndefinedValues: true });
 
 			const updateMap = this.tables[TableName].toUpdateMap(item);
 
@@ -713,53 +788,51 @@ export class DynamoService extends BaseService {
 					new UpdateItemCommand({
 						TableName,
 						Key,
-						ReturnValues,
+						ReturnValues: returnValues,
 						UpdateExpression,
 						ConditionExpression,
 						ExpressionAttributeValues,
 						ExpressionAttributeNames,
-						ReturnConsumedCapacity:
-							options?.returnConsumedCapacity ?? "TOTAL",
+						ReturnConsumedCapacity: returnConsumedCapacity,
 						ReturnItemCollectionMetrics:
-							options?.returnItemCollectionMetrics ?? "SIZE",
+							returnItemCollectionMetrics,
 					})
 				);
 				const response = await request;
-				if (options?.returnValues == "NONE") {
-					return {
-						data: null,
-						consumedCapacity: response.ConsumedCapacity,
-						itemCollectionMetrics: response.ItemCollectionMetrics,
-					};
-				}
-				// this is not the best example for this
-				if (response.Attributes) {
-					if (entity) {
-						if (!isEntity(entity)) {
-							throw new Error("entity provided is not Entity");
-						}
-						const entityIsEntity = entity;
-						return {
-							data: new entityIsEntity(
-								this.tables[TableName].toEntityInterface(
-									unmarshall(
-										response.Attributes as {
-											[key: string]: AttributeValue;
-										}
+				switch (returnValues) {
+					case "ALL_NEW":
+					case "ALL_OLD":
+					case "UPDATED_NEW":
+					case "UPDATED_OLD":
+					default: {
+						if (entity && response.Attributes) {
+							if (!isEntity(entity)) {
+								throw new Error(
+									"entity provided is not Entity"
+								);
+							}
+							const entityIsEntity = entity;
+							return {
+								data: new entityIsEntity(
+									this.tables[TableName].toEntityInterface(
+										unmarshall(response.Attributes)
 									)
-								)
-							) as unknown as TReturn,
+								) as unknown as TReturn,
+								consumedCapacity: response.ConsumedCapacity,
+								itemCollectionMetrics:
+									response.ItemCollectionMetrics,
+							};
+						}
+					}
+					case "NONE": {
+						return {
+							data: null,
 							consumedCapacity: response.ConsumedCapacity,
 							itemCollectionMetrics:
 								response.ItemCollectionMetrics,
 						};
 					}
 				}
-				return {
-					data: null,
-					consumedCapacity: response.ConsumedCapacity,
-					itemCollectionMetrics: response.ItemCollectionMetrics,
-				};
 			}
 			return { data: null };
 		} catch (err) {
@@ -816,13 +889,19 @@ export class DynamoService extends BaseService {
 		consumedCapacity?: ConsumedCapacity;
 		itemCollectionMetrics?: ItemCollectionMetrics;
 	}> {
-		const {
+		let {
 			tableName: TableName,
 			entity,
 			key,
 			accessPattern,
 			placeholderValues,
 		} = props;
+		const {
+			condition,
+			returnValues = "ALL_OLD",
+			returnConsumedCapacity = "TOTAL",
+			returnItemCollectionMetrics = "SIZE",
+		} = options ?? {};
 		try {
 			let accessProps: AccessProperties;
 			if (entity && accessPattern) {
@@ -839,73 +918,62 @@ export class DynamoService extends BaseService {
 			} else {
 				throw new Error("Access has not been defined");
 			}
+			key = accessProps.key;
 
-			if (
-				Object.values(accessProps.key ?? {}).some(
-					(val) => val instanceof Condition
-				)
-			) {
+			if (some(values(key ?? {}), (val) => val instanceof Condition)) {
 				throw new Error(
 					"Access provided cannot be used to delete objects"
 				);
 			}
 
-			const Key = marshall(accessProps.key as DynamoDBMap, {
+			const Key = marshall(key as DynamoDBMap, {
 				removeUndefinedValues: true,
 			});
 
 			const {
 				ExpressionAttributeValues,
 				KeyConditionExpression: ConditionExpression,
-			} = options?.condition?.generateExpression() ?? {};
+			} = condition?.generateExpression() ?? {};
 
 			const response = await this.dynamoDB.send(
 				new DeleteItemCommand({
 					TableName,
 					Key,
-					ReturnValues: options?.returnValues,
+					ReturnValues: returnValues,
 					ExpressionAttributeValues,
 					ConditionExpression,
-					ReturnConsumedCapacity:
-						options?.returnConsumedCapacity ?? "TOTAL",
-					ReturnItemCollectionMetrics:
-						options?.returnItemCollectionMetrics ?? "SIZE",
+					ReturnConsumedCapacity: returnConsumedCapacity,
+					ReturnItemCollectionMetrics: returnItemCollectionMetrics,
 				})
 			);
-			if (options?.returnValues == "NONE") {
-				return {
-					data: null,
-					consumedCapacity: response.ConsumedCapacity,
-					itemCollectionMetrics: response.ItemCollectionMetrics,
-				};
-			}
-			// this is not the best example for this
-			if (response.Attributes) {
-				if (entity) {
-					if (!isEntity(entity)) {
-						throw new Error("entity provided is not Entity");
-					}
-					const entityIsEntity = entity;
-					return {
-						data: new entityIsEntity(
-							this.tables[TableName].toEntityInterface(
-								unmarshall(
-									response.Attributes as {
-										[key: string]: AttributeValue;
-									}
+			switch (returnValues) {
+				case "ALL_OLD": {
+					if (entity && response.Attributes) {
+						if (!isEntity(entity)) {
+							throw new Error("entity provided is not Entity");
+						}
+						const entityIsEntity = entity;
+						return {
+							data: new entityIsEntity(
+								this.tables[TableName].toEntityInterface(
+									unmarshall(response.Attributes)
 								)
-							)
-						) as unknown as TReturn,
+							) as unknown as TReturn,
+							consumedCapacity: response.ConsumedCapacity,
+							itemCollectionMetrics:
+								response.ItemCollectionMetrics,
+						};
+					}
+				}
+				case "NONE":
+				default: {
+					return {
+						data: null,
 						consumedCapacity: response.ConsumedCapacity,
 						itemCollectionMetrics: response.ItemCollectionMetrics,
 					};
 				}
 			}
-			return {
-				data: null,
-				consumedCapacity: response.ConsumedCapacity,
-				itemCollectionMetrics: response.ItemCollectionMetrics,
-			};
 		} catch (err) {
 			throw this.errorHandler(err);
 		}
@@ -916,7 +984,8 @@ export class DynamoService extends BaseService {
 		accessPattern: string;
 	}): Key {
 		const { entity, accessPattern } = props;
-		const key = entity.accessPatterns?.[accessPattern];
+		const key = (entity.accessPatterns ??
+			(entity.constructor as any).accessPatterns)?.[accessPattern];
 		if (!key) {
 			throw new Error("Access Path does not exist");
 		}

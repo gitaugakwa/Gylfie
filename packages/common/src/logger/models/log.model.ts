@@ -7,6 +7,8 @@ interface LogLevel {
 
 export interface Log {
 	message: string;
+	service?: string;
+	state?: string;
 }
 
 export interface InternalLog {

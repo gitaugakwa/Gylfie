@@ -1,5 +1,6 @@
 import { AttributeValue } from "@aws-sdk/client-dynamodb";
 import { convertToAttr } from "@aws-sdk/util-dynamodb";
+import { entries, fromPairs } from "lodash";
 import { DynamoDBValue } from ".";
 import { Conversion } from "./conversion.model";
 import { Expression, ExpressionProps } from "./expression.model";
@@ -284,7 +285,7 @@ export class Condition extends Expression {
 					typeof this.value == "object" &&
 					this.value != null
 				) {
-					const entry = Object.entries(this.value)[0];
+					const entry = entries(this.value)[0];
 					let placekey = this.setValue(entry[1], `:${entry[0]}`);
 					returnValue = `${key} ${this.type} ${placekey}`;
 				}
@@ -322,7 +323,7 @@ export class Condition extends Expression {
 					typeof this.value == "object" &&
 					this.value != null
 				) {
-					let entry = Object.entries(this.value)[0];
+					let entry = entries(this.value)[0];
 					if (typeof entry[1] == "string") {
 						let placekey = this.setValue(entry[1], `:${entry[0]}`);
 						returnValue = `begins_with (${key}, ${placekey})`;
@@ -342,7 +343,7 @@ export class Condition extends Expression {
 					typeof this.value == "object" &&
 					this.value != null
 				) {
-					let entry = Object.entries(this.value)[0];
+					let entry = entries(this.value)[0];
 					if (
 						typeof entry[1] == "string" ||
 						typeof entry[1] == "number"
@@ -361,7 +362,7 @@ export class Condition extends Expression {
 					let placename = this.setName(key ?? "");
 					returnValue = `attribute_exists (${placename})`;
 				} else if (typeof key == "object" && key != null) {
-					let entry = Object.entries(key)[0];
+					let entry = entries(key)[0];
 					if (typeof entry[1] == "string") {
 						let placename = this.setName(entry[1], `:${entry[0]}`);
 						returnValue = `attribute_exists (${placename})`;
@@ -374,13 +375,16 @@ export class Condition extends Expression {
 					let placename = this.setName(key ?? "");
 					returnValue = `attribute_not_exists (${placename})`;
 				} else if (typeof key == "object" && key != null) {
-					let entry = Object.entries(key)[0];
+					let entry = entries(key)[0];
 					if (typeof entry[1] == "string") {
 						let placename = this.setName(entry[1], `:${entry[0]}`);
 						returnValue = `attribute_not_exists (${placename})`;
 					}
 				}
 				break;
+			}
+			default: {
+				returnValue = "";
 			}
 		}
 
@@ -395,9 +399,9 @@ export class Condition extends Expression {
 				),
 			].join(" AND ");
 			this.mergeValues(
-				Object.fromEntries(
+				fromPairs(
 					expr.flatMap(({ ExpressionAttributeValues }) =>
-						Object.entries(ExpressionAttributeValues)
+						entries(ExpressionAttributeValues)
 					)
 				)
 			);
@@ -414,9 +418,9 @@ export class Condition extends Expression {
 				),
 			].join(" OR ");
 			this.mergeValues(
-				Object.fromEntries(
+				fromPairs(
 					expr.flatMap(({ ExpressionAttributeValues }) =>
-						Object.entries(ExpressionAttributeValues)
+						entries(ExpressionAttributeValues)
 					)
 				)
 			);

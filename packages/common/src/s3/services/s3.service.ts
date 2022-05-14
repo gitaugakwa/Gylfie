@@ -70,24 +70,45 @@ export class S3Service extends BaseService {
 		// Since it's async to determine if the port is in use
 
 		if (this.isLocal()) {
+			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
-					props?.logger?.info(
-						`S3Service (${this.state}): Local Is ACTIVE`
-					);
+					props?.logger?.info({
+						message: "Local Is ACTIVE",
+						state: this.state,
+						service: "S3Service",
+					});
+					this.S3 = new S3Client({
+						endpoint: `http://localhost:${this.port}`,
+						region:
+							props?.region ?? process.env.S3_REGION ?? S3_REGION,
+						credentials: props?.credentials ?? fromEnv(),
+					});
+					props?.logger?.info({
+						message: "S3Client Initialized",
+						state: this.state,
+						service: "S3Service",
+					});
 				} else {
-					props?.logger?.warn(
-						`S3Service (${this.state}): Local Is INACTIVE`
-					);
+					props?.logger?.warn({
+						message: "Local Is INACTIVE",
+						state: this.state,
+						service: "S3Service",
+					});
+					this.state = State.ONLINE;
+					this.S3 = new S3Client({
+						region:
+							props?.region ??
+							process.env.S3_REGION ??
+							"eu-west-1",
+						credentials: props?.credentials ?? fromEnv(),
+					});
+					props?.logger?.info({
+						message: "S3Client Initialized",
+						state: this.state,
+						service: "S3Service",
+					});
 				}
-				this.S3 = new S3Client({
-					endpoint: `http://localhost:${this.port}`,
-					region: props?.region ?? process.env.S3_REGION ?? S3_REGION,
-					credentials: props?.credentials ?? fromEnv(),
-				});
-				props?.logger?.info(
-					`S3Service (${this.state}): DynamoDBClient Initialized`
-				);
 			});
 			return;
 		}
@@ -96,7 +117,11 @@ export class S3Service extends BaseService {
 			region: props?.region ?? process.env.S3_REGION ?? "eu-west-1",
 			credentials: props?.credentials ?? fromEnv(),
 		});
-		props?.logger?.info(`S3Service (${this.state}): S3Client Initialized`);
+		props?.logger?.info({
+			message: "S3Client Initialized",
+			state: this.state,
+			service: "S3Service",
+		});
 	}
 
 	// @States(State.Local, State.Online)

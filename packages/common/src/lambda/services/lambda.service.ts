@@ -33,22 +33,38 @@ export class LambdaService extends BaseService {
 			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
-					props?.logger?.info(
-						`LambdaService (${this.state}): Local Is ACTIVE`
-					);
+					props?.logger?.info({
+						message: "Local Is ACTIVE",
+						state: this.state,
+						service: "LambdaService",
+					});
+					this.lambda = new LambdaClient({
+						endpoint: `http://localhost:${this.port}`,
+						region: props?.region ?? LAMBDA_REGION,
+						credentials: props?.credentials ?? fromEnv(),
+					});
+					props?.logger?.info({
+						message: "LambdaClient Initialized",
+						state: this.state,
+						service: "LambdaService",
+					});
 				} else {
-					props?.logger?.warn(
-						`LambdaService (${this.state}): Local Is INACTIVE`
-					);
+					props?.logger?.warn({
+						message: "Local Is INACTIVE",
+						state: this.state,
+						service: "LambdaService",
+					});
+					this.state = State.ONLINE;
+					this.lambda = new LambdaClient({
+						region: props?.region ?? LAMBDA_REGION,
+						credentials: props?.credentials ?? fromEnv(),
+					});
+					props?.logger?.info({
+						message: "LambdaClient Initialized",
+						state: this.state,
+						service: "LambdaService",
+					});
 				}
-				this.lambda = new LambdaClient({
-					endpoint: `http://localhost:${this.port}`,
-					region: props?.region ?? LAMBDA_REGION,
-					credentials: props?.credentials ?? fromEnv(),
-				});
-				props?.logger?.info(
-					`LambdaService (${this.state}): LambdaClient Initialized`
-				);
 			});
 			return;
 		}
@@ -58,9 +74,11 @@ export class LambdaService extends BaseService {
 			region: props?.region ?? LAMBDA_REGION,
 			credentials: props?.credentials ?? fromEnv(),
 		});
-		props?.logger?.info(
-			`LambdaService (${this.state}): LambdaClient Initialized`
-		);
+		props?.logger?.info({
+			message: "LambdaClient Initialized",
+			state: this.state,
+			service: "LambdaService",
+		});
 	}
 
 	public async invokeLambda(

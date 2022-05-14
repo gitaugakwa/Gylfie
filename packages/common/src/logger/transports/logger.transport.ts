@@ -1,5 +1,6 @@
 import { LogCallback } from "winston";
 import Transport from "winston-transport";
+import { State } from "../../base";
 import { InternalLog, Log } from "../models";
 
 interface LoggerTransportProps extends Transport.TransportStreamOptions {}
@@ -20,6 +21,8 @@ export class LoggerTransport extends Transport {
 		setImmediate(() => {
 			let test: NodeJS.CallSite;
 			// Format the log into internalLog
+			log.metadata["state"] ??= State.INERT;
+			log.metadata["service"] ??= "GLOBAL";
 			const internalLog: InternalLog = {
 				...log,
 			};

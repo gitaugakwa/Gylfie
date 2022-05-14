@@ -1,6 +1,6 @@
 {
 	"name": "@gylfie/backend",
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"type": "commonjs",
 	"description": "Gylfie Javascript Backend Library",
 	"main": "lib/index.js",
@@ -32,6 +32,7 @@
 		"@types/passport-jwt": "^3.0.6",
 		"@types/portscanner": "^2.1.1",
 		"@types/uuid": "^8.3.4",
+		"@types/validator": "^13.7.2",
 		"cross-env": "^7.0.3",
 		"fast-check": "^2.25.0",
 		"lodash": "^4.17.21",
@@ -41,13 +42,12 @@
 	},
 	"dependencies": {
 		"@aws-sdk/types": "^3.78.0",
-		"@gylfie/common": "^0.0.7",
-		"@gylfie/core": "^0.0.7",
+		"@gylfie/common": "^0.0.8",
+		"@gylfie/core": "^0.0.8",
 		"@nestjs/jwt": "^8.0.0",
 		"class-transformer": "^0.4.0",
 		"class-validator": "^0.13.1",
 		"dotenv": "^10.0.0",
-		"email-validator": "^2.0.4",
 		"joi": "^17.6.0",
 		"jose": "^4.8.1",
 		"jsonwebtoken": "^8.5.1",
@@ -57,7 +57,8 @@
 		"rxjs": "^7.x",
 		"uuid": "^8.3.2",
 		"winston": "^3.7.2",
-		"winston-transport": "^4.5.0"
+		"winston-transport": "^4.5.0",
+		"validator": "^13.7.0"
 	},
 	"peerDependencies": {
 		"@nestjs/common": "^8.x",

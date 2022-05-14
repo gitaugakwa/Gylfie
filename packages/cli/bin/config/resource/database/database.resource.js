@@ -148,13 +148,14 @@ class GylfieDatabase extends resource_1.GylfieResource {
                     break;
                 }
             }
-            (0, fs_1.mkdirSync)(props.path);
+            if (!(0, fs_2.existsSync)(props.path)) {
+                (0, fs_1.mkdirSync)(props.path, { recursive: true });
+            }
             if (answers.stage) {
                 const stage = {
                     [answers.name]: {
                         type: answers.type,
                         stages: { [answers.stage]: props },
-                        properties: {},
                     },
                 };
                 context.addToConfig({

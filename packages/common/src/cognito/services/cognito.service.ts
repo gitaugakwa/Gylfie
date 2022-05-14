@@ -217,26 +217,47 @@ export class CognitoService extends BaseService {
 			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
-					props?.logger?.info(
-						`CognitoService (${this.state}): Local Is ACTIVE`
-					);
-				} else {
-					props?.logger?.warn(
-						`CognitoService (${this.state}): Local Is INACTIVE`
-					);
-				}
-				this.cognitoIdentityProvider =
-					new CognitoIdentityProviderClient({
-						endpoint: `http://localhost:${this.port}`,
-						region:
-							props?.region ??
-							process.env.COGNITO_REGION ??
-							COGNITO_REGION,
-						credentials: props?.credentials ?? fromEnv(),
+					props?.logger?.info({
+						message: "Local Is ACTIVE",
+						state: this.state,
+						service: "CognitoService",
 					});
-				props?.logger?.info(
-					`CognitoService (${this.state}): CognitoIdentityProviderClient Initialized`
-				);
+					this.cognitoIdentityProvider =
+						new CognitoIdentityProviderClient({
+							endpoint: `http://localhost:${this.port}`,
+							region:
+								props?.region ??
+								process.env.COGNITO_REGION ??
+								COGNITO_REGION,
+							credentials: props?.credentials ?? fromEnv(),
+						});
+					props?.logger?.info({
+						message: "CognitoIdentityProviderClient Initialized",
+						state: this.state,
+						service: "CognitoService",
+					});
+				} else {
+					props?.logger?.warn({
+						message: "Local Is INACTIVE",
+						state: this.state,
+						service: "CognitoService",
+					});
+					this.state = State.ONLINE;
+					this.cognitoIdentityProvider =
+						new CognitoIdentityProviderClient({
+							region:
+								props?.region ??
+								process.env.COGNITO_REGION ??
+								COGNITO_REGION,
+							credentials: props?.credentials ?? fromEnv(),
+						});
+
+					props?.logger?.info({
+						message: "CognitoIdentityProviderClient Initialized",
+						state: this.state,
+						service: "CognitoService",
+					});
+				}
 			});
 			return;
 		}
@@ -248,9 +269,11 @@ export class CognitoService extends BaseService {
 			credentials: props?.credentials ?? fromEnv(),
 		});
 
-		props?.logger?.info(
-			`CognitoService (${this.state}): CognitoIdentityProviderClient Initialized`
-		);
+		props?.logger?.info({
+			message: "CognitoIdentityProviderClient Initialized",
+			state: this.state,
+			service: "CognitoService",
+		});
 	}
 
 	//#region Basic Cognito Chores
