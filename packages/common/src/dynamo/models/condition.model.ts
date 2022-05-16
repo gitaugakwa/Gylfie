@@ -1,6 +1,9 @@
-import { AttributeValue } from "@aws-sdk/client-dynamodb";
+import {
+	AttributeValue,
+	ExpectedAttributeValue,
+} from "@aws-sdk/client-dynamodb";
 import { convertToAttr } from "@aws-sdk/util-dynamodb";
-import { entries, fromPairs } from "lodash";
+import { concat, entries, fromPairs, join } from "lodash";
 import { DynamoDBValue } from ".";
 import { Conversion } from "./conversion.model";
 import { Expression, ExpressionProps } from "./expression.model";
@@ -165,7 +168,7 @@ export class Condition extends Expression {
 				new Condition({
 					...param,
 					...this,
-					key: key ?? param.key,
+					key: key ?? param.key ?? this.key,
 					type: param.type,
 					value: param.value,
 				})
@@ -176,16 +179,13 @@ export class Condition extends Expression {
 			new Condition({
 				...this,
 				key:
-					this.type == ConditionOptions.exists ||
-					this.type == ConditionOptions.notExists
+					(this.type == ConditionOptions.exists ||
+						this.type == ConditionOptions.notExists) &&
+					!key
 						? param
 						: key,
 				// type: ConditionOptions.and,
-				value:
-					this.type == ConditionOptions.exists ||
-					this.type == ConditionOptions.notExists
-						? undefined
-						: param,
+				value: param,
 			})
 		);
 		return this;
@@ -209,8 +209,8 @@ export class Condition extends Expression {
 		this._or.push(
 			new Condition({
 				...this,
-				key: key,
-				type: ConditionOptions.or,
+				key: key ?? this.key,
+				// type: ConditionOptions.,
 				value: param,
 			})
 		);
@@ -390,14 +390,21 @@ export class Condition extends Expression {
 
 		if (this._and.length) {
 			const expr = this._and.map((comp) => {
-				return comp.generateExpression();
+				return comp.generateExpression({
+					key: undefined,
+					ExpressionAttributeValues: this.getAttributeValues(),
+					ExpressionAttributeNames: this.getAttributeNames(),
+				});
 			});
-			returnValue = [
-				returnValue,
-				...expr.map(
-					({ KeyConditionExpression }) => KeyConditionExpression
+			returnValue = join(
+				concat(
+					[returnValue],
+					expr.map(
+						({ KeyConditionExpression }) => KeyConditionExpression
+					)
 				),
-			].join(" AND ");
+				" AND "
+			);
 			this.mergeValues(
 				fromPairs(
 					expr.flatMap(({ ExpressionAttributeValues }) =>
@@ -409,14 +416,21 @@ export class Condition extends Expression {
 
 		if (this._or.length) {
 			const expr = this._or.map((comp) => {
-				return comp.generateExpression();
+				return comp.generateExpression({
+					key: undefined,
+					ExpressionAttributeValues: this.getAttributeValues(),
+					ExpressionAttributeNames: this.getAttributeNames(),
+				});
 			});
-			returnValue = [
-				returnValue,
-				...expr.map(
-					({ KeyConditionExpression }) => KeyConditionExpression
+			returnValue = join(
+				concat(
+					[returnValue],
+					expr.map(
+						({ KeyConditionExpression }) => KeyConditionExpression
+					)
 				),
-			].join(" OR ");
+				" OR "
+			);
 			this.mergeValues(
 				fromPairs(
 					expr.flatMap(({ ExpressionAttributeValues }) =>
