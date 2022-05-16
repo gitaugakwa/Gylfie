@@ -26,7 +26,7 @@ import {
 	Conversion,
 	UpdateRequestOptions,
 	PutRequestOptions,
-	GetRequestOptions,
+	QueryRequestOptions,
 	DynamoEntityConstructor,
 	DynamoDBMap,
 	TableProps,
@@ -386,23 +386,23 @@ export class DynamoService extends BaseService {
 
 	//#region Public Methods
 	/**
-	 * Get item from Table
+	 * Query item from Table
 	 * @param  {DynamoEntityConstructor<T>} entity - entity to be returned
 	 * @param  {string} TableName - Table to retrieve the item
 	 * @param  {Key} key - Key to identify the Item being retrieved
-	 * @param  {GetRequestOptions} options? - Optional request options
+	 * @param  {QueryRequestOptions} options? - Optional request options
 	 * @returns Promise
 	 */
 	// @States(State.Local, State.Hybrid, State.Online)
-	// public async get<TReturn = any, TProps = any>(entity)
-	public async get<TReturn = any, TProps = any>(
+	// public async query<TReturn = any, TProps = any>(entity)
+	public async query<TReturn = any, TProps = any>(
 		props: {
 			entity: DynamoEntityConstructor<TReturn> & AccessPatternsClass;
 			tableName: string;
 			accessPattern: string;
 			placeholderValues?: DynamoDBMap;
 		},
-		options?: GetRequestOptions
+		options?: QueryRequestOptions
 	): Promise<{
 		data: TReturn[];
 		cacheHit?: boolean;
@@ -410,14 +410,14 @@ export class DynamoService extends BaseService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}>;
-	public async get<TReturn = any, TProps = any>(
+	public async query<TReturn = any, TProps = any>(
 		props: {
 			entity: DynamoEntityConstructor<TReturn>;
 			tableName: string;
 			key: Key;
 			placeholderValues?: DynamoDBMap;
 		},
-		options?: GetRequestOptions
+		options?: QueryRequestOptions
 	): Promise<{
 		data: TReturn[];
 		cacheHit?: boolean;
@@ -425,7 +425,7 @@ export class DynamoService extends BaseService {
 		count?: number;
 		lastEvaluatedKey?: DynamoDBMap;
 	}>;
-	public async get<TReturn = any, TProps = any>(
+	public async query<TReturn = any, TProps = any>(
 		props: {
 			entity: DynamoEntityConstructor<TReturn> & AccessPatternsClass;
 			tableName: string;
@@ -433,7 +433,7 @@ export class DynamoService extends BaseService {
 			accessPattern?: string;
 			placeholderValues?: DynamoDBMap;
 		},
-		options?: GetRequestOptions
+		options?: QueryRequestOptions
 	): Promise<{
 		data: TReturn[];
 		cacheHit?: boolean;
@@ -455,6 +455,7 @@ export class DynamoService extends BaseService {
 			limit,
 			returnConsumedCapacity = "TOTAL",
 			scanIndexForward,
+			filter,
 		} = options ?? {};
 		try {
 			let accessProps: AccessProperties;
@@ -466,7 +467,7 @@ export class DynamoService extends BaseService {
 				);
 				// key = accessProps.key;
 			} else if (accessPattern) {
-				key = this.getAccessPatterns({ entity, accessPattern });
+				key = this.queryAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -486,13 +487,27 @@ export class DynamoService extends BaseService {
 					KeyConditionExpression,
 					IndexName,
 				} = accessProps.values;
-
+				const {
+					ExpressionAttributeNames,
+					ExpressionAttributeValues: FilterExpressionAttributeValues,
+					KeyConditionExpression: FilterExpression,
+				} = filter?.generateExpression({
+					ExpressionAttributeValues:
+						accessProps.values.ExpressionAttributeValues,
+				}) ?? {};
+				// Since the Expressions already contain the names
+				// ExpressionAttributeNames: undefined
+				// Condition should put names in the attributeNames
+				// Needs to be fixed
 				response = await this.dynamoDB.send(
 					new QueryCommand({
 						TableName,
 						IndexName,
 						KeyConditionExpression,
-						ExpressionAttributeValues,
+						ExpressionAttributeValues:
+							FilterExpressionAttributeValues ??
+							ExpressionAttributeValues,
+						ExpressionAttributeNames: undefined,
 						Limit: limit,
 						ConsistentRead: consistentRead,
 						ExclusiveStartKey: exclusiveStartKey
@@ -502,6 +517,9 @@ export class DynamoService extends BaseService {
 							: undefined,
 						ReturnConsumedCapacity: returnConsumedCapacity,
 						ScanIndexForward: scanIndexForward,
+						FilterExpression,
+						ProjectionExpression: undefined,
+						Select: undefined,
 					})
 				);
 				const result = response.Items;
@@ -585,7 +603,7 @@ export class DynamoService extends BaseService {
 	}
 
 	/**
-	 * Get all items in a Table
+	 * Query all items in a Table
 	 * @param  {string} TableName - Table from items to be retrived from
 	 * @returns Promise
 	 */
@@ -905,7 +923,7 @@ export class DynamoService extends BaseService {
 		try {
 			let accessProps: AccessProperties;
 			if (entity && accessPattern) {
-				const key = this.getAccessPatterns({ entity, accessPattern });
+				const key = this.queryAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -979,7 +997,7 @@ export class DynamoService extends BaseService {
 		}
 	}
 
-	private getAccessPatterns(props: {
+	private queryAccessPatterns(props: {
 		entity: AccessPatternsClass;
 		accessPattern: string;
 	}): Key {

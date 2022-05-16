@@ -18,13 +18,14 @@ export interface PutRequestOptions extends RequestOptions {
 	returnItemCollectionMetrics?: "SIZE" | "NONE";
 	condition?: Condition;
 }
-export interface GetRequestOptions
+export interface QueryRequestOptions
 	extends Omit<RequestOptions, "returnValues"> {
 	limit?: number;
 	consistentRead?: boolean;
 	exclusiveStartKey?: { [key: string]: string | number };
 	scanIndexForward?: boolean;
 	cache?: CacheGetProps & { ignoreCache: boolean };
+	filter?: Condition;
 	// placeholderValues?: DynamoDBMap;
 }
 export interface UpdateRequestOptions extends RequestOptions {

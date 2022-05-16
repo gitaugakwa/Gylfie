@@ -376,10 +376,12 @@ export class Table {
 
 			switch (type) {
 				case IndexType.GSI: {
+					const indexPKPlaceholders = place.getPlaceholders(indexPk);
 					if (
-						!place.getPlaceholders(indexPk).some((value) => {
+						!indexPKPlaceholders.some((value) => {
 							return getMetadata<boolean>(entity, "const", value);
-						})
+						}) &&
+						indexPKPlaceholders.length
 					) {
 						const val = place.replaceString(indexPk);
 						if (val) {
@@ -394,16 +396,15 @@ export class Table {
 					if (!indexSKName || !indexSk) {
 						return values;
 					}
+
+					const indexSKPlaceholders = place.getPlaceholders(
+						indexSk.toString()
+					);
 					if (
-						!place
-							.getPlaceholders(indexSk.toString())
-							.some((value) => {
-								return getMetadata<boolean>(
-									entity,
-									"const",
-									value
-								);
-							})
+						!indexSKPlaceholders.some((value) => {
+							return getMetadata<boolean>(entity, "const", value);
+						}) &&
+						indexPKPlaceholders.length
 					) {
 						if (typeof indexSk == "string") {
 							const val = place.replaceString(indexSk);
@@ -612,6 +613,9 @@ export class Table {
 
 			let baseUpdate: Update;
 			const filteredEntries = filter(entries(entity), ([key, value]) => {
+				if (value == undefined) {
+					return false;
+				}
 				if (excludeAll) {
 					if (
 						typeof value != "function" &&

@@ -1,6 +1,6 @@
 import { AttributeValue } from "@aws-sdk/client-dynamodb";
 import { UpdateEventSourceMappingCommand } from "@aws-sdk/client-lambda";
-import { compact, concat, merge, remove } from "lodash";
+import { compact, concat, entries, fromPairs, merge, remove } from "lodash";
 import { eventNames } from "process";
 import { Conversion } from "./conversion.model";
 import { Expression, ExpressionProps } from "./expression.model";
@@ -102,6 +102,8 @@ export class Update extends Expression {
 		return this;
 	}
 
+	// Rework this to look better
+	// Has too many spaces
 	public generateExpression(key?: string): {
 		ExpressionAttributeValues: {
 			[key: string]: AttributeValue;
@@ -233,24 +235,24 @@ export class Update extends Expression {
 						.join(",")}`
 				: "";
 
-			returnValue = [
+			returnValue = compact([
 				addUpdateExpression,
 				setUpdateExpression,
 				deleteUpdateExpression,
 				,
 				removeUpdateExpression,
-			].join(" ");
+			]).join(" ");
 			this.mergeValues(
-				Object.fromEntries(
+				fromPairs(
 					expressions.flatMap(({ ExpressionAttributeValues }) =>
-						Object.entries(ExpressionAttributeValues)
+						entries(ExpressionAttributeValues)
 					)
 				)
 			);
 			this.mergeNames(
-				Object.fromEntries(
+				fromPairs(
 					expressions.flatMap(({ ExpressionAttributeNames }) =>
-						Object.entries(ExpressionAttributeNames)
+						entries(ExpressionAttributeNames)
 					)
 				)
 			);
