@@ -652,6 +652,7 @@ export class DynamoService extends BaseService {
 		} = options ?? {};
 		const Item = marshall(this.tables[TableName].toDynamoMap(item), {
 			removeUndefinedValues: true,
+			convertClassInstanceToMap: true,
 		});
 
 		const {

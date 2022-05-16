@@ -61,7 +61,10 @@ export class Expression {
 		} else {
 			valueHolder = this.getValueHolder();
 		}
-		this.attributeValues[valueHolder] = convertToAttr(value);
+		this.attributeValues[valueHolder] = convertToAttr(value, {
+			removeUndefinedValues: true,
+			convertClassInstanceToMap: true,
+		});
 		return valueHolder;
 	}
 

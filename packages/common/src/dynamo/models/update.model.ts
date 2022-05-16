@@ -88,10 +88,13 @@ export class Update extends Expression {
 		this._and.push(
 			new Update({
 				...update,
-				...this,
 				key: key ?? update.key,
 				type: update.type,
 				value: update.value,
+				attributeNames: this.attributeNames,
+				attributeValues: this.attributeValues,
+				lastGeneratedNameHolder: this.lastGeneratedNameHolder,
+				lastGeneratedValueHolder: this.lastGeneratedValueHolder,
 			})
 		);
 		return this;

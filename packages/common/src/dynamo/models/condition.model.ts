@@ -167,24 +167,30 @@ export class Condition extends Expression {
 			this._and.push(
 				new Condition({
 					...param,
-					...this,
 					key: key ?? param.key ?? this.key,
 					type: param.type,
 					value: param.value,
+					attributeNames: this.attributeNames,
+					attributeValues: this.attributeValues,
+					lastGeneratedNameHolder: this.lastGeneratedNameHolder,
+					lastGeneratedValueHolder: this.lastGeneratedValueHolder,
 				})
 			);
 			return this;
 		}
 		this._and.push(
 			new Condition({
-				...this,
+				attributeNames: this.attributeNames,
+				attributeValues: this.attributeValues,
+				lastGeneratedNameHolder: this.lastGeneratedNameHolder,
+				lastGeneratedValueHolder: this.lastGeneratedValueHolder,
 				key:
-					(this.type == ConditionOptions.exists ||
+					((this.type == ConditionOptions.exists ||
 						this.type == ConditionOptions.notExists) &&
 					!key
-						? param
-						: key,
-				// type: ConditionOptions.and,
+						? (param as string)
+						: key) ?? this.key,
+				type: this.type,
 				value: param,
 			})
 		);
@@ -197,20 +203,31 @@ export class Condition extends Expression {
 		if (param instanceof Condition) {
 			this._or.push(
 				new Condition({
-					...this,
 					...param,
 					key: key ?? param.key,
 					type: param.type,
 					value: param.value,
+					attributeNames: this.attributeNames,
+					attributeValues: this.attributeValues,
+					lastGeneratedNameHolder: this.lastGeneratedNameHolder,
+					lastGeneratedValueHolder: this.lastGeneratedValueHolder,
 				})
 			);
 			return this;
 		}
 		this._or.push(
 			new Condition({
-				...this,
-				key: key ?? this.key,
-				// type: ConditionOptions.,
+				attributeNames: this.attributeNames,
+				attributeValues: this.attributeValues,
+				lastGeneratedNameHolder: this.lastGeneratedNameHolder,
+				lastGeneratedValueHolder: this.lastGeneratedValueHolder,
+				key:
+					((this.type == ConditionOptions.exists ||
+						this.type == ConditionOptions.notExists) &&
+					!key
+						? (param as string)
+						: key) ?? this.key,
+				type: this.type,
 				value: param,
 			})
 		);
