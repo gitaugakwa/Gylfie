@@ -29,43 +29,56 @@ export class LambdaService extends BaseService {
 			(parseInt(process.env.LOCAL_LAMBDA_PORT ?? "") ||
 				LOCAL_LAMBDA_PORT);
 
-		this.state = State.ONLINE;
 		this.lambda = new LambdaClient({
 			region: props?.region ?? LAMBDA_REGION,
 			credentials: props?.credentials ?? fromEnv(),
 		});
+		this.state = State.ONLINE;
 		props?.logger?.info({
 			message: "LambdaClient Initialized",
 			state: this.state,
 			service: "LambdaService",
 		});
-		if (this.isLocal()) {
-			this.isLocalActive(this.port).then((active) => {
-				if (active) {
-					this.state = State.LOCAL;
-					props?.logger?.info({
-						message: "Local Is ACTIVE",
-						state: this.state,
-						service: "LambdaService",
-					});
-					this.lambda = new LambdaClient({
-						endpoint: `http://localhost:${this.port}`,
-						region: props?.region ?? LAMBDA_REGION,
-						credentials: props?.credentials ?? fromEnv(),
-					});
-					props?.logger?.info({
-						message: "LambdaClient Initialized",
-						state: this.state,
-						service: "LambdaService",
-					});
-				} else {
-					props?.logger?.warn({
-						message: "Local Is INACTIVE",
-						state: this.state,
-						service: "LambdaService",
-					});
-				}
+		const initializeLocalClient = () => {
+			props?.logger?.info({
+				message: "Local Is ACTIVE",
+				state: this.state,
+				service: "LambdaService",
 			});
+			this.lambda = new LambdaClient({
+				endpoint: `http://localhost:${this.port}`,
+				region: props?.region ?? LAMBDA_REGION,
+				credentials: props?.credentials ?? fromEnv(),
+			});
+			this.state = State.LOCAL;
+			props?.logger?.info({
+				message: "LambdaClient Initialized",
+				state: this.state,
+				service: "LambdaService",
+			});
+		};
+		if (this.isLocal()) {
+			if (props?.local?.isActive) {
+				initializeLocalClient();
+			} else if (props?.local?.checkIfActive ?? true) {
+				this.isLocalActive(this.port).then((active) => {
+					if (active) {
+						initializeLocalClient();
+					} else {
+						props?.logger?.warn({
+							message: "Local Is INACTIVE",
+							state: this.state,
+							service: "LambdaService",
+						});
+					}
+				});
+			} else {
+				props?.logger?.warn({
+					message: "Local Is INACTIVE",
+					state: this.state,
+					service: "LambdaService",
+				});
+			}
 			return;
 		}
 	}

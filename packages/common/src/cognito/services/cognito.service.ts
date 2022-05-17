@@ -213,49 +213,60 @@ export class CognitoService extends BaseService {
 		this.userPoolID =
 			props?.userPoolID ?? process.env.COGNITO_APP_USERPOOL_ID ?? "";
 
-		this.state = State.ONLINE;
 		this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
 			region:
 				props?.region ?? process.env.COGNITO_REGION ?? COGNITO_REGION,
 			credentials: props?.credentials ?? fromEnv(),
 		});
-
+		this.state = State.ONLINE;
 		props?.logger?.info({
 			message: "CognitoIdentityProviderClient Initialized",
 			state: this.state,
 			service: "CognitoService",
 		});
-		if (this.isLocal()) {
-			this.isLocalActive(this.port).then((active) => {
-				if (active) {
-					this.state = State.LOCAL;
-					props?.logger?.info({
-						message: "Local Is ACTIVE",
-						state: this.state,
-						service: "CognitoService",
-					});
-					this.cognitoIdentityProvider =
-						new CognitoIdentityProviderClient({
-							endpoint: `http://localhost:${this.port}`,
-							region:
-								props?.region ??
-								process.env.COGNITO_REGION ??
-								COGNITO_REGION,
-							credentials: props?.credentials ?? fromEnv(),
-						});
-					props?.logger?.info({
-						message: "CognitoIdentityProviderClient Initialized",
-						state: this.state,
-						service: "CognitoService",
-					});
-				} else {
-					props?.logger?.warn({
-						message: "Local Is INACTIVE",
-						state: this.state,
-						service: "CognitoService",
-					});
-				}
+		const initializeLocalClient = () => {
+			props?.logger?.info({
+				message: "Local Is ACTIVE",
+				state: this.state,
+				service: "CognitoService",
 			});
+			this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
+				endpoint: `http://localhost:${this.port}`,
+				region:
+					props?.region ??
+					process.env.COGNITO_REGION ??
+					COGNITO_REGION,
+				credentials: props?.credentials ?? fromEnv(),
+			});
+			this.state = State.LOCAL;
+			props?.logger?.info({
+				message: "CognitoIdentityProviderClient Initialized",
+				state: this.state,
+				service: "CognitoService",
+			});
+		};
+		if (this.isLocal()) {
+			if (props?.local?.isActive) {
+				initializeLocalClient();
+			} else if (props?.local?.checkIfActive ?? true) {
+				this.isLocalActive(this.port).then((active) => {
+					if (active) {
+						initializeLocalClient();
+					} else {
+						props?.logger?.warn({
+							message: "Local Is INACTIVE",
+							state: this.state,
+							service: "CognitoService",
+						});
+					}
+				});
+			} else {
+				props?.logger?.warn({
+					message: "Local Is INACTIVE",
+					state: this.state,
+					service: "CognitoService",
+				});
+			}
 			return;
 		}
 	}

@@ -1,11 +1,11 @@
-import { DynamicModule, Module } from "@nestjs/common";
-import { LambdaController } from "../../controllers/lambda/lambda.controller";
+import { LOCAL_LAMBDA_PORT } from "@gylfie/common";
 import {
-	BaseModuleProps,
 	BaseModule,
-	BaseServiceProps,
+	BaseModuleProps,
 	BaseServiceModuleProps,
 } from "@gylfie/common/lib/base";
+import { DynamicModule, Module } from "@nestjs/common";
+import { LambdaController } from "../../controllers/lambda/lambda.controller";
 import {
 	NestLambdaService,
 	NestLambdaServiceProps,
@@ -25,15 +25,15 @@ export interface LambdaModuleProps
 	exports: [NestLambdaService],
 })
 export class LambdaModule extends BaseModule {
-	static forRoot(
+	static async forRoot(
 		props: LambdaServiceModuleProps,
 		base: BaseModuleProps
-	): DynamicModule;
-	static forRoot(props: LambdaModuleProps): DynamicModule;
-	static forRoot(
+	): Promise<DynamicModule>;
+	static async forRoot(props: LambdaModuleProps): Promise<DynamicModule>;
+	static async forRoot(
 		props: LambdaModuleProps | LambdaServiceModuleProps,
 		base?: BaseModuleProps
-	): DynamicModule {
+	): Promise<DynamicModule> {
 		// It should be able to read values in a dotenv
 		// Such as Account ID, Service, and maybe the version of the sdk being run
 		//
@@ -42,6 +42,19 @@ export class LambdaModule extends BaseModule {
 			LambdaServiceModuleProps,
 			LambdaModuleProps
 		>(props, base);
+
+		if (
+			NestLambdaService.isLocal() &&
+			(lambdaProps.local?.checkIfActive ?? true) &&
+			!lambdaProps.local?.isActive
+		) {
+			(lambdaProps.local ??= {}).isActive =
+				await NestLambdaService.isLocalActive(
+					lambdaProps.port ??
+						(parseInt(process.env.LOCAL_LAMBDA_PORT ?? "") ||
+							LOCAL_LAMBDA_PORT)
+				);
+		}
 
 		const controllers = props.controller ? [LambdaController] : undefined;
 

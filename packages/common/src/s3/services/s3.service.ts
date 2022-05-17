@@ -68,44 +68,56 @@ export class S3Service extends BaseService {
 		});
 		// the default local setup is Hybrid
 		// Since it's async to determine if the port is in use
-		this.state = State.ONLINE;
 		this.S3 = new S3Client({
 			region: props?.region ?? process.env.S3_REGION ?? "eu-west-1",
 			credentials: props?.credentials ?? fromEnv(),
 		});
+		this.state = State.ONLINE;
 		props?.logger?.info({
 			message: "S3Client Initialized",
 			state: this.state,
 			service: "S3Service",
 		});
-		if (this.isLocal()) {
-			this.isLocalActive(this.port).then((active) => {
-				if (active) {
-					this.state = State.LOCAL;
-					props?.logger?.info({
-						message: "Local Is ACTIVE",
-						state: this.state,
-						service: "S3Service",
-					});
-					this.S3 = new S3Client({
-						endpoint: `http://localhost:${this.port}`,
-						region:
-							props?.region ?? process.env.S3_REGION ?? S3_REGION,
-						credentials: props?.credentials ?? fromEnv(),
-					});
-					props?.logger?.info({
-						message: "S3Client Initialized",
-						state: this.state,
-						service: "S3Service",
-					});
-				} else {
-					props?.logger?.warn({
-						message: "Local Is INACTIVE",
-						state: this.state,
-						service: "S3Service",
-					});
-				}
+		const initializeLocalClient = () => {
+			props?.logger?.info({
+				message: "Local Is ACTIVE",
+				state: this.state,
+				service: "S3Service",
 			});
+			this.S3 = new S3Client({
+				endpoint: `http://localhost:${this.port}`,
+				region: props?.region ?? process.env.S3_REGION ?? S3_REGION,
+				credentials: props?.credentials ?? fromEnv(),
+			});
+			this.state = State.LOCAL;
+			props?.logger?.info({
+				message: "S3Client Initialized",
+				state: this.state,
+				service: "S3Service",
+			});
+		};
+		if (this.isLocal()) {
+			if (props?.local?.isActive) {
+				initializeLocalClient();
+			} else if (props?.local?.checkIfActive ?? true) {
+				this.isLocalActive(this.port).then((active) => {
+					if (active) {
+						initializeLocalClient();
+					} else {
+						props?.logger?.warn({
+							message: "Local Is INACTIVE",
+							state: this.state,
+							service: "S3Service",
+						});
+					}
+				});
+			} else {
+				props?.logger?.warn({
+					message: "Local Is INACTIVE",
+					state: this.state,
+					service: "S3Service",
+				});
+			}
 			return;
 		}
 	}

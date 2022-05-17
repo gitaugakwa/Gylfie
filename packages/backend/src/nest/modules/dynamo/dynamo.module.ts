@@ -12,6 +12,7 @@ import {
 	NestDynamoServiceProps,
 } from "../../services/dynamo/dynamo.service";
 import { DYNAMO_PROPS } from "./dynamo.constants";
+import { LOCAL_DYNAMO_PORT } from "@gylfie/common";
 
 export interface DynamoServiceModuleProps
 	extends BaseServiceModuleProps<NestDynamoServiceProps> {}
@@ -26,15 +27,15 @@ export interface DynamoModuleProps
 	exports: [NestDynamoService],
 })
 export class DynamoModule extends BaseModule {
-	static forRoot(
+	static async forRoot(
 		props: DynamoServiceModuleProps,
 		base: BaseModuleProps
-	): DynamicModule;
-	static forRoot(props: DynamoModuleProps): DynamicModule;
-	static forRoot(
+	): Promise<DynamicModule>;
+	static async forRoot(props: DynamoModuleProps): Promise<DynamicModule>;
+	static async forRoot(
 		props: DynamoModuleProps | DynamoServiceModuleProps,
 		base?: BaseModuleProps
-	): DynamicModule {
+	): Promise<DynamicModule> {
 		// It should be able to read values in a dotenv
 		// Such as Account ID, Service, and maybe the version of the sdk being run
 		//
@@ -43,6 +44,19 @@ export class DynamoModule extends BaseModule {
 			DynamoServiceModuleProps,
 			DynamoModuleProps
 		>(props, base);
+
+		if (
+			NestDynamoService.isLocal() &&
+			(dynamoProps.local?.checkIfActive ?? true) &&
+			!dynamoProps.local?.isActive
+		) {
+			(dynamoProps.local ??= {}).isActive =
+				await NestDynamoService.isLocalActive(
+					dynamoProps.port ??
+						(parseInt(process.env.LOCAL_DYNAMO_PORT ?? "") ||
+							LOCAL_DYNAMO_PORT)
+				);
+		}
 
 		const controllers = props.controller ? [DynamoController] : undefined;
 

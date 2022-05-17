@@ -116,12 +116,11 @@ export class DynamoService extends BaseService {
 			this.tables[val.name] = new Table(val);
 		});
 
-		this.state = State.ONLINE;
 		this.dynamoDB = new DynamoDBClient({
 			region: props?.region ?? process.env.DYNAMO_REGION ?? DYNAMO_REGION,
 			credentials: props?.credentials ?? fromEnv(),
 		});
-
+		this.state = State.ONLINE;
 		props?.logger?.info({
 			message: "DynamoDBClient Initialized",
 			state: this.state,
@@ -134,47 +133,55 @@ export class DynamoService extends BaseService {
 			service: "DynamoService",
 		});
 
-		if (this.isLocal()) {
-			this.isLocalActive(this.port).then((active) => {
-				if (active) {
-					this.state = State.LOCAL;
-					props?.logger?.info({
-						message: "Local Is Active",
-						state: this.state,
-						service: "DynamoService",
-					});
-					this.dynamoDB = new DynamoDBClient({
-						endpoint: `http://localhost:${this.port}`,
-						region:
-							props?.region ??
-							process.env.DYNAMO_REGION ??
-							DYNAMO_REGION,
-						credentials: props?.credentials ?? fromEnv(),
-					});
-					props?.logger?.info({
-						message: "DynamoDBClient Initialized",
-						state: this.state,
-						service: "DynamoService",
-					});
-					this.dynamoDBDocument = DynamoDBDocument.from(
-						this.dynamoDB
-					);
-					props?.logger?.info({
-						message: "DynamoDBDocument Initialized",
-						state: this.state,
-						service: "DynamoService",
-					});
-				} else {
-					props?.logger?.warn({
-						message: "Local Is INACTIVE",
-						state: this.state,
-						service: "DynamoService",
-					});
-				}
+		const initializeLocalClient = () => {
+			props?.logger?.info({
+				message: "Local Is Active",
+				state: this.state,
+				service: "DynamoService",
 			});
+			this.dynamoDB = new DynamoDBClient({
+				endpoint: `http://localhost:${this.port}`,
+				region:
+					props?.region ?? process.env.DYNAMO_REGION ?? DYNAMO_REGION,
+				credentials: props?.credentials ?? fromEnv(),
+			});
+			this.state = State.LOCAL;
+			props?.logger?.info({
+				message: "DynamoDBClient Initialized",
+				state: this.state,
+				service: "DynamoService",
+			});
+			this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
+			props?.logger?.info({
+				message: "DynamoDBDocument Initialized",
+				state: this.state,
+				service: "DynamoService",
+			});
+		};
+		if (this.isLocal()) {
+			if (props?.local?.isActive) {
+				initializeLocalClient();
+			} else if (props?.local?.checkIfActive ?? true) {
+				this.isLocalActive(this.port).then((active) => {
+					if (active) {
+						initializeLocalClient();
+					} else {
+						props?.logger?.warn({
+							message: "Local Is INACTIVE",
+							state: this.state,
+							service: "DynamoService",
+						});
+					}
+				});
+			} else {
+				props?.logger?.warn({
+					message: "Local Is INACTIVE",
+					state: this.state,
+					service: "DynamoService",
+				});
+			}
 			return;
 		}
-		return;
 	}
 
 	//#endregion

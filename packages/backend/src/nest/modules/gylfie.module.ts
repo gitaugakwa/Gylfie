@@ -43,6 +43,34 @@ export class GylfieModule extends BaseModule {
 			const baseProps = this.parseBaseProps(baseModuleProps);
 			const modulePromises: Promise<void>[] = [];
 			// console.log("Pre dynamo");
+			if (logger) {
+				// console.log("Inside Logger");
+				modulePromises.push(
+					new Promise((res) => {
+						import("./logger/logger.module").then(
+							({ LoggerModule }) => {
+								imports["logger"] = LoggerModule.forRoot(
+									logger,
+									baseProps
+								);
+								if (imports["logger"].providers) {
+									providers.push(
+										...imports["logger"].providers
+									);
+								}
+								if (imports["logger"].controllers) {
+									controllers.push(
+										...imports["logger"].controllers
+									);
+								}
+								res();
+								return;
+							}
+						);
+					})
+				);
+			}
+
 			if (cache) {
 				// console.log("Inside cache");
 
@@ -76,8 +104,8 @@ export class GylfieModule extends BaseModule {
 				modulePromises.push(
 					new Promise((res) => {
 						import("./dynamo/dynamo.module").then(
-							({ DynamoModule }) => {
-								imports["dynamo"] = DynamoModule.forRoot(
+							async ({ DynamoModule }) => {
+								imports["dynamo"] = await DynamoModule.forRoot(
 									dynamo,
 									baseProps
 								);
@@ -104,11 +132,12 @@ export class GylfieModule extends BaseModule {
 				modulePromises.push(
 					new Promise((res) => {
 						import("./cognito/cognito.module").then(
-							({ CognitoModule }) => {
-								imports["cognito"] = CognitoModule.forRoot(
-									cognito,
-									baseProps
-								);
+							async ({ CognitoModule }) => {
+								imports["cognito"] =
+									await CognitoModule.forRoot(
+										cognito,
+										baseProps
+									);
 								if (imports["cognito"].providers) {
 									providers.push(
 										...imports["cognito"].providers
@@ -131,8 +160,11 @@ export class GylfieModule extends BaseModule {
 				// console.log("Inside S3");
 				modulePromises.push(
 					new Promise((res) => {
-						import("./s3/s3.module").then(({ S3Module }) => {
-							imports["s3"] = S3Module.forRoot(s3, baseProps);
+						import("./s3/s3.module").then(async ({ S3Module }) => {
+							imports["s3"] = await S3Module.forRoot(
+								s3,
+								baseProps
+							);
 							if (imports["s3"].providers) {
 								providers.push(...imports["s3"].providers);
 							}
@@ -146,33 +178,7 @@ export class GylfieModule extends BaseModule {
 				);
 			}
 			// console.log("Pre Logger");
-			if (logger) {
-				// console.log("Inside Logger");
-				modulePromises.push(
-					new Promise((res) => {
-						import("./logger/logger.module").then(
-							({ LoggerModule }) => {
-								imports["logger"] = LoggerModule.forRoot(
-									logger,
-									baseProps
-								);
-								if (imports["logger"].providers) {
-									providers.push(
-										...imports["logger"].providers
-									);
-								}
-								if (imports["logger"].controllers) {
-									controllers.push(
-										...imports["logger"].controllers
-									);
-								}
-								res();
-								return;
-							}
-						);
-					})
-				);
-			}
+
 			// 	console.log("pre Lambda");
 			// 	if (logger?.serviceProps.lambda || lambda) {
 			// 		console.log("Inside Lambda");

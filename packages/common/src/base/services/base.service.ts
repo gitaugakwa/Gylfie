@@ -23,6 +23,7 @@ export interface BaseServiceProps {
 	// context?: Context; // based on the request
 	moduleLogs?: string[]; // for now, though it would be a log object
 	logger?: LoggerService;
+	local?: { checkIfActive?: boolean; isActive?: boolean };
 }
 
 export abstract class BaseService {
@@ -30,15 +31,23 @@ export abstract class BaseService {
 
 	constructor() {}
 
-	protected isLocal(): boolean {
+	static isLocal(): boolean {
 		if (process.env.LOCATION == "LOCAL") {
 			return true;
 		}
 		return false;
 	}
 
-	protected async isLocalActive(port: number) {
+	protected isLocal(): boolean {
+		return BaseService.isLocal();
+	}
+
+	static async isLocalActive(port: number) {
 		return (await checkPortStatus(port)) == "open";
+	}
+
+	protected async isLocalActive(port: number) {
+		return BaseService.isLocalActive(port);
 	}
 
 	protected abstract errorHandler(
