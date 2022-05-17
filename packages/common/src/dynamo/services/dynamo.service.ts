@@ -102,8 +102,8 @@ export type CreateTableProps = TableProps & {
  */
 // @ServiceState(8000, "LOCAL_DYNAMO_PORT")
 export class DynamoService extends BaseService {
-	public dynamoDB!: DynamoDBClient;
-	public dynamoDBDocument!: DynamoDBDocument;
+	public dynamoDB: DynamoDBClient;
+	public dynamoDBDocument: DynamoDBDocument;
 	private port: number;
 	public tables: { [key: string]: Table } = {};
 	constructor(private props?: DynamoServiceProps) {
@@ -116,10 +116,28 @@ export class DynamoService extends BaseService {
 			this.tables[val.name] = new Table(val);
 		});
 
+		this.state = State.ONLINE;
+		this.dynamoDB = new DynamoDBClient({
+			region: props?.region ?? process.env.DYNAMO_REGION ?? DYNAMO_REGION,
+			credentials: props?.credentials ?? fromEnv(),
+		});
+
+		props?.logger?.info({
+			message: "DynamoDBClient Initialized",
+			state: this.state,
+			service: "DynamoService",
+		});
+		this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
+		props?.logger?.info({
+			message: "DynamoDBDocument Initialized",
+			state: this.state,
+			service: "DynamoService",
+		});
+
 		if (this.isLocal()) {
-			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
+					this.state = State.LOCAL;
 					props?.logger?.info({
 						message: "Local Is Active",
 						state: this.state,
@@ -152,50 +170,10 @@ export class DynamoService extends BaseService {
 						state: this.state,
 						service: "DynamoService",
 					});
-					this.state = State.ONLINE;
-					this.dynamoDB = new DynamoDBClient({
-						region:
-							props?.region ??
-							process.env.DYNAMO_REGION ??
-							DYNAMO_REGION,
-						credentials: props?.credentials ?? fromEnv(),
-					});
-
-					props?.logger?.info({
-						message: "DynamoDBClient Initialized",
-						state: this.state,
-						service: "DynamoService",
-					});
-					this.dynamoDBDocument = DynamoDBDocument.from(
-						this.dynamoDB
-					);
-					props?.logger?.info({
-						message: "DynamoDBDocument Initialized",
-						state: this.state,
-						service: "DynamoService",
-					});
 				}
 			});
 			return;
 		}
-
-		this.state = State.ONLINE;
-		this.dynamoDB = new DynamoDBClient({
-			region: props?.region ?? process.env.DYNAMO_REGION ?? DYNAMO_REGION,
-			credentials: props?.credentials ?? fromEnv(),
-		});
-
-		props?.logger?.info({
-			message: "DynamoDBClient Initialized",
-			state: this.state,
-			service: "DynamoService",
-		});
-		this.dynamoDBDocument = DynamoDBDocument.from(this.dynamoDB);
-		props?.logger?.info({
-			message: "DynamoDBDocument Initialized",
-			state: this.state,
-			service: "DynamoService",
-		});
 		return;
 	}
 

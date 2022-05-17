@@ -194,7 +194,7 @@ export interface CognitoServiceProps extends BaseServiceProps {
 
 // @ServiceState(9229, "LOCAL_COGNITO_PORT")
 export class CognitoService extends BaseService {
-	public cognitoIdentityProvider!: CognitoIdentityProviderClient;
+	public cognitoIdentityProvider: CognitoIdentityProviderClient;
 	// private accessPattern: AccessPattern;
 	public clientID: string;
 	public userPoolID: string;
@@ -213,10 +213,22 @@ export class CognitoService extends BaseService {
 		this.userPoolID =
 			props?.userPoolID ?? process.env.COGNITO_APP_USERPOOL_ID ?? "";
 
+		this.state = State.ONLINE;
+		this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
+			region:
+				props?.region ?? process.env.COGNITO_REGION ?? COGNITO_REGION,
+			credentials: props?.credentials ?? fromEnv(),
+		});
+
+		props?.logger?.info({
+			message: "CognitoIdentityProviderClient Initialized",
+			state: this.state,
+			service: "CognitoService",
+		});
 		if (this.isLocal()) {
-			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
+					this.state = State.LOCAL;
 					props?.logger?.info({
 						message: "Local Is ACTIVE",
 						state: this.state,
@@ -242,38 +254,10 @@ export class CognitoService extends BaseService {
 						state: this.state,
 						service: "CognitoService",
 					});
-					this.state = State.ONLINE;
-					this.cognitoIdentityProvider =
-						new CognitoIdentityProviderClient({
-							region:
-								props?.region ??
-								process.env.COGNITO_REGION ??
-								COGNITO_REGION,
-							credentials: props?.credentials ?? fromEnv(),
-						});
-
-					props?.logger?.info({
-						message: "CognitoIdentityProviderClient Initialized",
-						state: this.state,
-						service: "CognitoService",
-					});
 				}
 			});
 			return;
 		}
-
-		this.state = State.ONLINE;
-		this.cognitoIdentityProvider = new CognitoIdentityProviderClient({
-			region:
-				props?.region ?? process.env.COGNITO_REGION ?? COGNITO_REGION,
-			credentials: props?.credentials ?? fromEnv(),
-		});
-
-		props?.logger?.info({
-			message: "CognitoIdentityProviderClient Initialized",
-			state: this.state,
-			service: "CognitoService",
-		});
 	}
 
 	//#region Basic Cognito Chores

@@ -55,7 +55,7 @@ export interface S3ServiceProps extends BaseServiceProps {
 
 // @ServiceState(4566, "LOCAL_S3_PORT")
 export class S3Service extends BaseService {
-	private S3!: S3Client;
+	private S3: S3Client;
 	protected buckets: { [key: string]: Bucket } = {};
 	private port: number;
 	constructor(props?: S3ServiceProps) {
@@ -68,11 +68,20 @@ export class S3Service extends BaseService {
 		});
 		// the default local setup is Hybrid
 		// Since it's async to determine if the port is in use
-
+		this.state = State.ONLINE;
+		this.S3 = new S3Client({
+			region: props?.region ?? process.env.S3_REGION ?? "eu-west-1",
+			credentials: props?.credentials ?? fromEnv(),
+		});
+		props?.logger?.info({
+			message: "S3Client Initialized",
+			state: this.state,
+			service: "S3Service",
+		});
 		if (this.isLocal()) {
-			this.state = State.LOCAL;
 			this.isLocalActive(this.port).then((active) => {
 				if (active) {
+					this.state = State.LOCAL;
 					props?.logger?.info({
 						message: "Local Is ACTIVE",
 						state: this.state,
@@ -95,33 +104,10 @@ export class S3Service extends BaseService {
 						state: this.state,
 						service: "S3Service",
 					});
-					this.state = State.ONLINE;
-					this.S3 = new S3Client({
-						region:
-							props?.region ??
-							process.env.S3_REGION ??
-							"eu-west-1",
-						credentials: props?.credentials ?? fromEnv(),
-					});
-					props?.logger?.info({
-						message: "S3Client Initialized",
-						state: this.state,
-						service: "S3Service",
-					});
 				}
 			});
 			return;
 		}
-		this.state = State.ONLINE;
-		this.S3 = new S3Client({
-			region: props?.region ?? process.env.S3_REGION ?? "eu-west-1",
-			credentials: props?.credentials ?? fromEnv(),
-		});
-		props?.logger?.info({
-			message: "S3Client Initialized",
-			state: this.state,
-			service: "S3Service",
-		});
 	}
 
 	// @States(State.Local, State.Online)
