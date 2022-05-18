@@ -7,7 +7,7 @@ import { CognitoServiceModuleProps } from "./cognito";
 import { S3ServiceModuleProps } from "./s3";
 import { AuthenticationServiceModuleProps } from "./authentication";
 import { CacheServiceModuleProps } from "./cache";
-import { values } from "lodash";
+import { map, values } from "lodash";
 
 export interface GylfieModuleProps extends BaseModuleProps {
 	dynamo?: DynamoServiceModuleProps;
@@ -23,32 +23,32 @@ export interface GylfieModuleProps extends BaseModuleProps {
 export class GylfieModule extends BaseModule {
 	static async forRoot(props?: GylfieModuleProps): Promise<DynamicModule> {
 		// Will set all nested Modules to global
-		const imports: { [key: string]: DynamicModule } = {};
-		const providers: Provider<any>[] = [];
-		const controllers: Type<any>[] = [];
-		if (props) {
-			const {
-				cognito,
-				dynamo,
-				logger,
-				s3,
-				lambda,
-				authentication,
-				cache,
-				...baseModuleProps
-			} = props;
-			this.mergeEnv();
-			// console.log("Inside Gylfie Module ForRoot");
-			// const baseProps = this.parseBaseProps(props);
-			const baseProps = this.parseBaseProps(baseModuleProps);
-			const modulePromises: Promise<void>[] = [];
-			// console.log("Pre dynamo");
-			if (logger) {
-				// console.log("Inside Logger");
-				modulePromises.push(
-					new Promise((res) => {
-						import("./logger/logger.module").then(
-							({ LoggerModule }) => {
+		try {
+			const imports: { [key: string]: DynamicModule } = {};
+			const providers: Provider<any>[] = [];
+			const controllers: Type<any>[] = [];
+			if (props) {
+				const {
+					cognito,
+					dynamo,
+					logger,
+					s3,
+					lambda,
+					authentication,
+					cache,
+					...baseModuleProps
+				} = props;
+				this.mergeEnv();
+				// console.log("Inside Gylfie Module ForRoot");
+				// const baseProps = this.parseBaseProps(props);
+				const baseProps = this.parseBaseProps(baseModuleProps);
+				const modulePromises: Promise<void>[] = [];
+				// console.log("Pre dynamo");
+				if (logger) {
+					// console.log("Inside Logger");
+					modulePromises.push(
+						import("./logger/logger.module")
+							.then(({ LoggerModule }) => {
 								imports["logger"] = LoggerModule.forRoot(
 									logger,
 									baseProps
@@ -63,21 +63,20 @@ export class GylfieModule extends BaseModule {
 										...imports["logger"].controllers
 									);
 								}
-								res();
 								return;
-							}
-						);
-					})
-				);
-			}
+							})
+							.catch((err) => {
+								console.log(err);
+							})
+					);
+				}
 
-			if (cache) {
-				// console.log("Inside cache");
+				if (cache) {
+					// console.log("Inside cache");
 
-				modulePromises.push(
-					new Promise((res) => {
-						import("./cache/cache.module").then(
-							({ CacheModule }) => {
+					modulePromises.push(
+						import("./cache/cache.module")
+							.then(({ CacheModule }) => {
 								imports["cache"] = CacheModule.forRoot(
 									cache,
 									baseProps
@@ -92,19 +91,18 @@ export class GylfieModule extends BaseModule {
 										...imports["cache"].controllers
 									);
 								}
-								res();
 								return;
-							}
-						);
-					})
-				);
-			}
-			if (dynamo) {
-				// console.log("Inside dynamo");
-				modulePromises.push(
-					new Promise((res) => {
-						import("./dynamo/dynamo.module").then(
-							async ({ DynamoModule }) => {
+							})
+							.catch((err) => {
+								console.log(err);
+							})
+					);
+				}
+				if (dynamo) {
+					// console.log("Inside dynamo");
+					modulePromises.push(
+						import("./dynamo/dynamo.module")
+							.then(async ({ DynamoModule }) => {
 								imports["dynamo"] = await DynamoModule.forRoot(
 									dynamo,
 									baseProps
@@ -119,20 +117,18 @@ export class GylfieModule extends BaseModule {
 										...imports["dynamo"].controllers
 									);
 								}
-								res();
-								return;
-							}
-						);
-					})
-				);
-			}
-			// console.log("Pre cognito");
-			if (cognito) {
-				// console.log("Inside Cognito");
-				modulePromises.push(
-					new Promise((res) => {
-						import("./cognito/cognito.module").then(
-							async ({ CognitoModule }) => {
+							})
+							.catch((err) => {
+								console.log(err);
+							})
+					);
+				}
+				// console.log("Pre cognito");
+				if (cognito) {
+					// console.log("Inside Cognito");
+					modulePromises.push(
+						import("./cognito/cognito.module")
+							.then(async ({ CognitoModule }) => {
 								imports["cognito"] =
 									await CognitoModule.forRoot(
 										cognito,
@@ -148,94 +144,101 @@ export class GylfieModule extends BaseModule {
 										...imports["cognito"].controllers
 									);
 								}
-								res();
-								return;
-							}
-						);
-					})
-				);
-			}
-			// console.log("Pre S3");
-			if (s3) {
-				// console.log("Inside S3");
-				modulePromises.push(
-					new Promise((res) => {
-						import("./s3/s3.module").then(async ({ S3Module }) => {
-							imports["s3"] = await S3Module.forRoot(
-								s3,
-								baseProps
-							);
-							if (imports["s3"].providers) {
-								providers.push(...imports["s3"].providers);
-							}
-							if (imports["s3"].controllers) {
-								controllers.push(...imports["s3"].controllers);
-							}
-							res();
-							return;
-						});
-					})
-				);
-			}
-			// console.log("Pre Logger");
+							})
+							.catch((err) => {
+								console.log(err);
+							})
+					);
+				}
+				// console.log("Pre S3");
+				if (s3) {
+					// console.log("Inside S3");
+					modulePromises.push(
+						import("./s3/s3.module")
+							.then(async ({ S3Module }) => {
+								imports["s3"] = await S3Module.forRoot(
+									s3,
+									baseProps
+								);
+								if (imports["s3"].providers) {
+									providers.push(...imports["s3"].providers);
+								}
+								if (imports["s3"].controllers) {
+									controllers.push(
+										...imports["s3"].controllers
+									);
+								}
+							})
+							.catch((err) => {
+								console.log(err);
+							})
+					);
+				}
+				// console.log("Pre Logger");
 
-			// 	console.log("pre Lambda");
-			// 	if (logger?.serviceProps.lambda || lambda) {
-			// 		console.log("Inside Lambda");
-			// 		modules["lambda"] = LambdaModule.forRoot(
-			// 			lambda ?? {
-			// 				serviceProps: { ...logger?.serviceProps },
-			// 			},
-			// 			baseProps
-			// 		);
-			// 		if (modules["lambda"].providers) {
-			// 			providers.push(...modules["lambda"].providers);
-			// 		}
-			// 		if (modules["lambda"].controllers) {
-			// 			controllers.push(...modules["lambda"].controllers);
-			// 		}
-			// 	}
-			// 	if (signer && decoder) {
-			// 		console.log(
-			// 			"Both the Token Signer and the Token Decoder should not be in the same app."
-			// 		);
-			// 		console.log(
-			// 			"We recommend you move the Signer to a separate independent app."
-			// 		);
-			// 	}
-			// 	console.log("pre signer");
-			// 	if (signer) {
-			// 		console.log("Inside signer");
-			// 		modules["signer"] = SignerModule.forRoot(signer, baseProps);
-			// 		if (modules["signer"].providers) {
-			// 			providers.push(...modules["signer"].providers);
-			// 		}
-			// 		if (modules["signer"].controllers) {
-			// 			controllers.push(...modules["signer"].controllers);
-			// 		}
-			// 	}
-			// 	console.log("pre decoder");
-			// 	if (decoder) {
-			// 		console.log("Inside decoder");
-			// 		modules["decoder"] = DecoderModule.forRoot(decoder, baseProps);
-			// 		if (modules["decoder"].providers) {
-			// 			providers.push(...modules["decoder"].providers);
-			// 		}
-			// 		if (modules["decoder"].controllers) {
-			// 			controllers.push(...modules["decoder"].controllers);
-			// 		}
-			// 	}
-			// 	console.log("ForRoot complete");
-			await Promise.all(modulePromises);
+				// 	console.log("pre Lambda");
+				// 	if (logger?.serviceProps.lambda || lambda) {
+				// 		console.log("Inside Lambda");
+				// 		modules["lambda"] = LambdaModule.forRoot(
+				// 			lambda ?? {
+				// 				serviceProps: { ...logger?.serviceProps },
+				// 			},
+				// 			baseProps
+				// 		);
+				// 		if (modules["lambda"].providers) {
+				// 			providers.push(...modules["lambda"].providers);
+				// 		}
+				// 		if (modules["lambda"].controllers) {
+				// 			controllers.push(...modules["lambda"].controllers);
+				// 		}
+				// 	}
+				// 	if (signer && decoder) {
+				// 		console.log(
+				// 			"Both the Token Signer and the Token Decoder should not be in the same app."
+				// 		);
+				// 		console.log(
+				// 			"We recommend you move the Signer to a separate independent app."
+				// 		);
+				// 	}
+				// 	console.log("pre signer");
+				// 	if (signer) {
+				// 		console.log("Inside signer");
+				// 		modules["signer"] = SignerModule.forRoot(signer, baseProps);
+				// 		if (modules["signer"].providers) {
+				// 			providers.push(...modules["signer"].providers);
+				// 		}
+				// 		if (modules["signer"].controllers) {
+				// 			controllers.push(...modules["signer"].controllers);
+				// 		}
+				// 	}
+				// 	console.log("pre decoder");
+				// 	if (decoder) {
+				// 		console.log("Inside decoder");
+				// 		modules["decoder"] = DecoderModule.forRoot(decoder, baseProps);
+				// 		if (modules["decoder"].providers) {
+				// 			providers.push(...modules["decoder"].providers);
+				// 		}
+				// 		if (modules["decoder"].controllers) {
+				// 			controllers.push(...modules["decoder"].controllers);
+				// 		}
+				// 	}
+				// 	console.log("ForRoot complete");
+				await Promise.all(modulePromises).catch((err) => {
+					console.log(err);
+				});
+			}
+
+			return {
+				module: GylfieModule,
+				global: props?.isGlobal,
+				// imports: values(imports),
+				providers,
+				controllers,
+				exports: providers,
+			};
+		} catch (err) {
+			console.log(err);
+			throw err;
 		}
-
-		return {
-			module: GylfieModule,
-			global: props?.isGlobal,
-			// imports: values(imports),
-			providers,
-			controllers,
-			exports: providers,
-		};
 	}
 }

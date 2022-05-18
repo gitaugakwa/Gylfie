@@ -35,6 +35,8 @@ export class ErrorFilter implements ExceptionFilter {
 		// console.log("Error Filter");
 		console.log("Error:");
 		console.log(exception);
+		console.log("Request:");
+		console.log(req);
 
 		let response: GylfieResponse;
 		if (exception instanceof GylfieError) {
