@@ -187,7 +187,7 @@ export class LoggerService extends BaseService {
 
 	provideContext(context: GylfieContext) {
 		// This can be called multiple times
-		Object.assign(this.context, context);
+		Object.assign((this.context ??= {}), context);
 	}
 
 	end(): LoggerService {

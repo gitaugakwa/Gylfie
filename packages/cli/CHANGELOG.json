@@ -2,6 +2,12 @@
   "name": "@gylfie/cli",
   "entries": [
     {
+      "version": "0.0.11",
+      "tag": "@gylfie/cli_v0.0.11",
+      "date": "Wed, 25 May 2022 19:26:13 GMT",
+      "comments": {}
+    },
+    {
       "version": "0.0.10",
       "tag": "@gylfie/cli_v0.0.10",
       "date": "Wed, 18 May 2022 15:33:46 GMT",

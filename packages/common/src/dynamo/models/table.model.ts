@@ -77,8 +77,8 @@ enum ATTRIBUTE_TYPE {
 export class AccessProperties {
 	constructor(
 		public values: {
-			KeyConditionExpression: string;
-			ExpressionAttributeValues: {
+			KeyConditionExpression?: string;
+			ExpressionAttributeValues?: {
 				[key: string]: AttributeValue;
 			};
 			IndexName?: string;
@@ -277,11 +277,13 @@ export class Table {
 
 	//#region Parse Methods
 	// If a placeholder value is undefined throw
-	public parsePrimaryKey(entity: any): [string, string | number][] {
+	public parsePrimaryKey<T extends Record<string, any> = any>(
+		entity: T
+	): [string, string | number][] {
 		const {
 			primaryKey: { partitionKey: pk, sortKey: sk },
 			name,
-		} = getMetadata<EntityProps>(entity, "entityStructure");
+		} = getMetadata<EntityProps<T>>(entity, "entityStructure");
 		const { partitionKey: pkName, sortKey: skName } =
 			this.structure.primaryKey;
 		const place = new Placeholder(entity);
@@ -304,20 +306,20 @@ export class Table {
 		return values;
 	}
 
-	private parseIndexKey(
+	private parseIndexKey<T extends Record<string, any> = any>(
 		indexName: string,
-		entity: any
+		instance: T
 	): [string, string | number][] {
 		// primaryKey for LSI indexes
-		const { name, indexes } = getMetadata<EntityProps>(
-			entity,
+		const { name, indexes } = getMetadata<EntityProps<T>>(
+			instance,
 			"entityStructure"
 		);
 
-		const place = new Placeholder(entity);
+		const place = new Placeholder(instance);
 
 		if (indexes && indexes[indexName] && this.structure.indexes) {
-			const { partitionKey: indexPk, sortKey: indexSk } =
+			let { partitionKey: indexPk, sortKey: indexSk } =
 				indexes[indexName];
 			const {
 				type,
@@ -328,6 +330,19 @@ export class Table {
 
 			switch (type) {
 				case IndexType.GSI: {
+					// let indexPkShouldUpdate;
+					if (typeof indexPk == "function") {
+						const result = indexPk(instance);
+						if (typeof result == "string") {
+							indexPk = result;
+						} else {
+							indexPk = result.value;
+							// indexPkShouldUpdate = result.shouldUpdate;
+						}
+					} else if (typeof indexPk == "object") {
+						// indexPkShouldUpdate = indexPk.shouldUpdate;
+						indexPk = indexPk.value;
+					}
 					values.push([indexPKName, place.replaceString(indexPk)]);
 					if (indexSKName && !indexSk) {
 						throw new Error(
@@ -336,6 +351,22 @@ export class Table {
 					}
 					if (!indexSKName || !indexSk) {
 						return values;
+					}
+					// let indexSkShouldUpdate;
+					if (typeof indexSk == "function") {
+						const result = indexSk(instance);
+						if (
+							typeof result == "string" ||
+							typeof result == "number"
+						) {
+							indexSk = result;
+						} else {
+							indexSk = result.value;
+							// indexSkShouldUpdate = result.shouldUpdate;
+						}
+					} else if (typeof indexSk == "object") {
+						// indexSkShouldUpdate = indexSk.shouldUpdate;
+						indexSk = indexSk.value;
 					}
 					values.push([
 						indexSKName,
@@ -352,20 +383,20 @@ export class Table {
 		}
 		return [];
 	}
-	private parseUpdateIndexKey(
+	private parseUpdateIndexKey<T extends Record<string, any> = any>(
 		indexName: string,
-		entity: any
+		instance: T
 	): [string, string | number][] {
 		// primaryKey for LSI indexes
-		const { name, indexes } = getMetadata<EntityProps>(
-			entity,
+		const { name, indexes } = getMetadata<EntityProps<T>>(
+			instance,
 			"entityStructure"
 		);
 
-		const place = new Placeholder(entity);
+		const place = new Placeholder(instance);
 
 		if (indexes && indexes[indexName] && this.structure.indexes) {
-			const { partitionKey: indexPk, sortKey: indexSk } =
+			let { partitionKey: indexPk, sortKey: indexSk } =
 				indexes[indexName];
 			const {
 				type,
@@ -376,13 +407,30 @@ export class Table {
 
 			switch (type) {
 				case IndexType.GSI: {
+					let indexPkShouldUpdate;
+					if (typeof indexPk == "function") {
+						const result = indexPk(instance);
+						if (typeof result == "string") {
+							indexPk = result;
+						} else {
+							indexPk = result.value;
+							indexPkShouldUpdate = result.shouldUpdate;
+						}
+					} else if (typeof indexPk == "object") {
+						indexPkShouldUpdate = indexPk.shouldUpdate;
+						indexPk = indexPk.value;
+					}
 					const indexPKPlaceholders = place.getPlaceholders(indexPk);
-					if (
+					indexPkShouldUpdate ??=
+						indexPKPlaceholders.length &&
 						!indexPKPlaceholders.some((value) => {
-							return getMetadata<boolean>(entity, "const", value);
-						}) &&
-						indexPKPlaceholders.length
-					) {
+							return getMetadata<boolean>(
+								instance,
+								"const",
+								value
+							);
+						});
+					if (indexPkShouldUpdate) {
 						const val = place.replaceString(indexPk);
 						if (val) {
 							values.push([indexPKName, val]);
@@ -397,15 +445,35 @@ export class Table {
 						return values;
 					}
 
+					let indexSkShouldUpdate;
+					if (typeof indexSk == "function") {
+						const result = indexSk(instance);
+						if (
+							typeof result == "string" ||
+							typeof result == "number"
+						) {
+							indexSk = result;
+						} else {
+							indexSk = result.value;
+							indexSkShouldUpdate = result.shouldUpdate;
+						}
+					} else if (typeof indexSk == "object") {
+						indexSkShouldUpdate = indexSk.shouldUpdate;
+						indexSk = indexSk.value;
+					}
 					const indexSKPlaceholders = place.getPlaceholders(
 						indexSk.toString()
 					);
-					if (
+					indexSkShouldUpdate ??=
+						indexSKPlaceholders.length &&
 						!indexSKPlaceholders.some((value) => {
-							return getMetadata<boolean>(entity, "const", value);
-						}) &&
-						indexPKPlaceholders.length
-					) {
+							return getMetadata<boolean>(
+								instance,
+								"const",
+								value
+							);
+						});
+					if (indexSkShouldUpdate) {
 						if (typeof indexSk == "string") {
 							const val = place.replaceString(indexSk);
 							if (val) {
@@ -484,7 +552,7 @@ export class Table {
 		return commonIndexes;
 	}
 
-	private parseAllKeys(entity: any) {
+	private parseAllKeys<T extends Record<string, any> = any>(instance: T) {
 		const keys: {
 			[key: string]: string | number | { [key: string]: string | number };
 		} = {};
@@ -492,7 +560,7 @@ export class Table {
 			primaryKey: { partitionKey: pk, sortKey: sk },
 			name,
 			indexes,
-		} = getMetadata<EntityProps>(entity, "entityStructure");
+		} = getMetadata<EntityProps<T>>(instance, "entityStructure");
 		const { partitionKey: pkName, sortKey: skName } =
 			this.structure.primaryKey;
 		if (skName && !sk) {
@@ -500,7 +568,7 @@ export class Table {
 				`Table requires SortKey which is not provided in Entity:${name}`
 			);
 		}
-		const place = new Placeholder(entity);
+		const place = new Placeholder(instance);
 		keys[pkName] = place.replaceString(pk);
 		if (skName && sk) {
 			keys[skName] = typeof sk == "number" ? sk : place.replaceString(sk);
@@ -523,7 +591,7 @@ export class Table {
 							string,
 							[string, string | number][]
 						] => {
-							const { sortKey: indexSk, partitionKey: indexPk } =
+							let { sortKey: indexSk, partitionKey: indexPk } =
 								indexMap;
 							if (this.structure.indexes) {
 								const {
@@ -539,6 +607,21 @@ export class Table {
 												`GSI:${indexName} requires SortKey which is not provided in Entity:${name}`
 											);
 										}
+										// let indexPkShouldUpdate;
+										if (typeof indexPk == "function") {
+											const result = indexPk(instance);
+											if (typeof result == "string") {
+												indexPk = result;
+											} else {
+												indexPk = result.value;
+												// indexPkShouldUpdate =
+												// 	result.shouldUpdate;
+											}
+										} else if (typeof indexPk == "object") {
+											// indexPkShouldUpdate =
+											// 	indexPk.shouldUpdate;
+											indexPk = indexPk.value;
+										}
 										const index: [
 											string,
 											string | number
@@ -550,6 +633,24 @@ export class Table {
 										];
 										if (!indexSk || !indexSkName) {
 											return [indexName, index];
+										}
+										// let indexSkShouldUpdate;
+										if (typeof indexSk == "function") {
+											const result = indexSk(instance);
+											if (
+												typeof result == "string" ||
+												typeof result == "number"
+											) {
+												indexSk = result;
+											} else {
+												indexSk = result.value;
+												// indexSkShouldUpdate =
+												// 	result.shouldUpdate;
+											}
+										} else if (typeof indexSk == "object") {
+											// indexSkShouldUpdate =
+											// 	indexSk.shouldUpdate;
+											indexSk = indexSk.value;
 										}
 										index.push([
 											"sortKey",

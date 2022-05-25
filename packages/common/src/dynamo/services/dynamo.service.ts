@@ -643,6 +643,7 @@ export class DynamoService extends BaseService {
 		const {
 			// ExpressionAttributeValues,
 			KeyConditionExpression: ConditionExpression,
+			ExpressionAttributeValues,
 			ExpressionAttributeNames,
 		} = options?.condition?.generateExpression() ?? {};
 
@@ -654,7 +655,7 @@ export class DynamoService extends BaseService {
 					Item,
 					ReturnValues: returnValues,
 					ExpressionAttributeNames,
-					// ExpressionAttributeValues,
+					ExpressionAttributeValues,
 					ConditionExpression,
 					ReturnConsumedCapacity: returnConsumedCapacity,
 					ReturnItemCollectionMetrics: returnItemCollectionMetrics,

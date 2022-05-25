@@ -8,13 +8,29 @@ import {
 	EntityMixin,
 } from "../models/entity.model";
 
-export interface IndexValue {
-	type: IndexType;
-	partitionKey: string;
-	sortKey?: string | number;
+interface IndexValuePartitionKeyResult {
+	value: string;
+	shouldUpdate?: boolean;
+}
+interface IndexValueSortKeyResult {
+	value: string | number;
+	shouldUpdate?: boolean;
 }
 
-export interface EntityProps {
+export interface IndexValue<T extends any> {
+	type: IndexType;
+	partitionKey:
+		| string
+		| IndexValuePartitionKeyResult
+		| ((instance: T) => string | IndexValuePartitionKeyResult);
+	sortKey?:
+		| string
+		| number
+		| IndexValueSortKeyResult
+		| ((instance: T) => string | number | IndexValueSortKeyResult);
+}
+
+export interface EntityProps<T extends any> {
 	name: string;
 	primaryKey: {
 		partitionKey: string;
@@ -22,7 +38,7 @@ export interface EntityProps {
 	};
 	condition?: Condition;
 	indexes?: {
-		[key: string]: IndexValue;
+		[key: string]: IndexValue<T>;
 	};
 	attributes?: {
 		[key: string]: {
@@ -34,7 +50,7 @@ export interface EntityProps {
 }
 
 // We could also technically make this static thus is not instantiated every construction
-export function Entity(props?: EntityProps) {
+export function Entity<T extends any>(props?: EntityProps<T>) {
 	return function DecoratorFunction<T extends { new (...args: any[]): {} }>(
 		constructor: T
 	) {

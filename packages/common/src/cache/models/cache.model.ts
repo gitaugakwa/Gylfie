@@ -17,8 +17,8 @@ export class CacheElement {
 			? DateTime.fromISO(initialData.updatedAt)
 			: undefined;
 		this.refreshedAt = DateTime.utc();
-		const entityStructure = (initialData as any)
-			._gylfie_entityStructure as EntityProps;
+		// const entityStructure = (initialData as any)
+		// ._gylfie_entityStructure as EntityProps;
 		// if (entityStructure.cacheTime) {
 		// 	if (typeof entityStructure.cacheTime == "number") {
 		// 		this.cacheTime = Duration.fromObject({

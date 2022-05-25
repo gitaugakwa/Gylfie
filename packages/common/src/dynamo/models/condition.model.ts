@@ -1,11 +1,6 @@
-import {
-	AttributeValue,
-	ExpectedAttributeValue,
-} from "@aws-sdk/client-dynamodb";
-import { convertToAttr } from "@aws-sdk/util-dynamodb";
-import { concat, entries, fromPairs, join } from "lodash";
+import { AttributeValue } from "@aws-sdk/client-dynamodb";
+import { concat, entries, fromPairs, isEmpty, join } from "lodash";
 import { DynamoDBValue } from ".";
-import { Conversion } from "./conversion.model";
 import { Expression, ExpressionProps } from "./expression.model";
 
 export enum ConditionOptions {
@@ -251,13 +246,13 @@ export class Condition extends Expression {
 			[key: string]: string;
 		};
 	}): {
-		ExpressionAttributeValues: {
+		ExpressionAttributeValues?: {
 			[key: string]: AttributeValue;
 		};
-		ExpressionAttributeNames: {
+		ExpressionAttributeNames?: {
 			[key: string]: string;
 		};
-		KeyConditionExpression: string;
+		KeyConditionExpression?: string;
 	} {
 		let { ExpressionAttributeValues, ExpressionAttributeNames, key } =
 			props ?? {};
@@ -462,8 +457,12 @@ export class Condition extends Expression {
 				this._or.length || this._and.length
 					? `(${returnValue})`
 					: returnValue,
-			ExpressionAttributeValues: this.getAttributeValues(),
-			ExpressionAttributeNames: this.getAttributeNames(),
+			ExpressionAttributeValues: isEmpty(this.getAttributeValues())
+				? undefined
+				: this.getAttributeValues(),
+			ExpressionAttributeNames: isEmpty(this.getAttributeNames())
+				? undefined
+				: this.getAttributeNames(),
 		};
 	}
 }

@@ -160,7 +160,7 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 			};
 			const entityStructure = (
 				constructor as unknown as {
-					_gylfie_entityStructure: EntityProps;
+					_gylfie_entityStructure: EntityProps<T>;
 				}
 			)._gylfie_entityStructure;
 			if (props && entityStructure && isEntityInterface(props)) {
@@ -210,14 +210,16 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 						const { partitionKey, sortKey } = props.indexes[name];
 
 						keys.push(partitionKey);
-						values.push(
-							...entries(
-								valueFromSchema(
-									props.map[partitionKey] as string,
-									key.partitionKey
+						if (key.partitionKey == "string") {
+							values.push(
+								...entries(
+									valueFromSchema(
+										props.map[partitionKey] as string,
+										key.partitionKey
+									)
 								)
-							)
-						);
+							);
+						}
 						if (sortKey && typeof key.sortKey == "string") {
 							keys.push(sortKey);
 							values.push(
