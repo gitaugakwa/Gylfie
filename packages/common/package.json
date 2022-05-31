@@ -1,6 +1,6 @@
 {
 	"name": "@gylfie/common",
-	"version": "0.0.11",
+	"version": "0.0.12",
 	"type": "commonjs",
 	"description": "Gylfie Javascript Common Library",
 	"main": "lib/index.js",
@@ -50,7 +50,7 @@
 		"@aws-sdk/s3-request-presigner": "^3.95.0",
 		"@aws-sdk/types": "^3.78.0",
 		"@aws-sdk/util-dynamodb": "^3.95.0",
-		"@gylfie/core": "^0.0.11",
+		"@gylfie/core": "^0.0.12",
 		"class-transformer": "^0.4.0",
 		"class-validator": "^0.13.1",
 		"dotenv": "^10.0.0",

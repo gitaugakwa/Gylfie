@@ -17,6 +17,17 @@ interface IndexValueSortKeyResult {
 	shouldUpdate?: boolean;
 }
 
+interface PrimaryKeyValue<T extends any> {
+	partitionKey:
+		| string
+		| IndexValuePartitionKeyResult
+		| ((instance: T) => string | IndexValuePartitionKeyResult);
+	sortKey?:
+		| string
+		| IndexValuePartitionKeyResult
+		| ((instance: T) => string | IndexValuePartitionKeyResult);
+}
+
 export interface IndexValue<T extends any> {
 	type: IndexType;
 	partitionKey:
@@ -32,10 +43,7 @@ export interface IndexValue<T extends any> {
 
 export interface EntityProps<T extends any> {
 	name: string;
-	primaryKey: {
-		partitionKey: string;
-		sortKey?: string;
-	};
+	primaryKey: PrimaryKeyValue<T>;
 	condition?: Condition;
 	indexes?: {
 		[key: string]: IndexValue<T>;

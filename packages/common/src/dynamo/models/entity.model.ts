@@ -158,12 +158,13 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 			): props is { map: DynamoDBMap; complete: true } {
 				return props.complete;
 			};
-			const entityStructure = (
-				constructor as unknown as {
-					_gylfie_entityStructure: EntityProps<T>;
-				}
-			)._gylfie_entityStructure;
-			if (props && entityStructure && isEntityInterface(props)) {
+			const { primaryKey, indexes } =
+				(
+					constructor as unknown as {
+						_gylfie_entityStructure?: EntityProps<T>;
+					}
+				)._gylfie_entityStructure ?? {};
+			if (props && isEntityInterface(props)) {
 				// Get values from schema
 				// Get table key attribute names
 				if (isComplete(props)) {
@@ -176,32 +177,46 @@ export function EntityMixin<T extends { new (...args: any[]): {} }>(
 				const values: [string, DynamoDBValue][] = [];
 				const keys: string[] = [partitionKey];
 
-				values.push(
-					...entries(
-						valueFromSchema(
-							props.map[partitionKey] as string,
-							entityStructure.primaryKey.partitionKey
+				if (
+					typeof primaryKey?.partitionKey == "string" ||
+					typeof primaryKey?.partitionKey == "object"
+				) {
+					const partitionKeyValue =
+						typeof primaryKey.partitionKey == "string"
+							? typeof primaryKey.partitionKey
+							: primaryKey.partitionKey.value;
+
+					values.push(
+						...entries(
+							valueFromSchema(
+								props.map[partitionKey] as string,
+								partitionKeyValue
+							)
 						)
-					)
-				);
+					);
+				}
 				if (
 					sortKey &&
-					typeof entityStructure.primaryKey.sortKey == "string"
+					(typeof primaryKey?.sortKey == "string" ||
+						typeof primaryKey?.sortKey == "object")
 				) {
+					const sortKeyValue =
+						typeof primaryKey.sortKey == "string"
+							? typeof primaryKey.sortKey
+							: primaryKey.sortKey.value;
+
 					keys.push(sortKey);
 					values.push(
 						...entries(
 							valueFromSchema(
 								props.map[sortKey] as string,
-								entityStructure.primaryKey.sortKey
+								sortKeyValue
 							)
 						)
 					);
 				}
-				if (props.indexes && entityStructure.indexes) {
-					for (const [name, key] of entries(
-						entityStructure.indexes
-					)) {
+				if (props.indexes && indexes) {
+					for (const [name, key] of entries(indexes)) {
 						if (!props.indexes[name]) {
 							throw new Error(
 								"Index provided does not exist in Table"

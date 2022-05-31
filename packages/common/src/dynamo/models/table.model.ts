@@ -278,18 +278,42 @@ export class Table {
 	//#region Parse Methods
 	// If a placeholder value is undefined throw
 	public parsePrimaryKey<T extends Record<string, any> = any>(
-		entity: T
+		instance: T
 	): [string, string | number][] {
-		const {
+		let {
 			primaryKey: { partitionKey: pk, sortKey: sk },
 			name,
-		} = getMetadata<EntityProps<T>>(entity, "entityStructure");
+		} = getMetadata<EntityProps<T>>(instance, "entityStructure");
 		const { partitionKey: pkName, sortKey: skName } =
 			this.structure.primaryKey;
-		const place = new Placeholder(entity);
+		const place = new Placeholder(instance);
+		if (typeof pk == "function") {
+			const result = pk(instance);
+			if (typeof result == "string") {
+				pk = result;
+			} else {
+				pk = result.value;
+				// indexPkShouldUpdate = result.shouldUpdate;
+			}
+		} else if (typeof pk == "object") {
+			// indexPkShouldUpdate = indexPk.shouldUpdate;
+			pk = pk.value;
+		}
 		const values: [string, string | number][] = [
 			[pkName, place.replaceString(pk)],
 		];
+		if (typeof sk == "function") {
+			const result = sk(instance);
+			if (typeof result == "string" || typeof result == "number") {
+				sk = result;
+			} else {
+				sk = result.value;
+				// indexSkShouldUpdate = result.shouldUpdate;
+			}
+		} else if (typeof sk == "object") {
+			// indexSkShouldUpdate = indexSk.shouldUpdate;
+			sk = sk.value;
+		}
 		if (skName && !sk) {
 			throw new Error(
 				`Table requires SortKey which is not provided in Entity:${name}`
@@ -556,7 +580,7 @@ export class Table {
 		const keys: {
 			[key: string]: string | number | { [key: string]: string | number };
 		} = {};
-		const {
+		let {
 			primaryKey: { partitionKey: pk, sortKey: sk },
 			name,
 			indexes,
@@ -569,7 +593,35 @@ export class Table {
 			);
 		}
 		const place = new Placeholder(instance);
+		if (typeof pk == "function") {
+			const result = pk(instance);
+			if (typeof result == "string") {
+				pk = result;
+			} else {
+				pk = result.value;
+				// indexPkShouldUpdate =
+				// 	result.shouldUpdate;
+			}
+		} else if (typeof pk == "object") {
+			// indexPkShouldUpdate =
+			// 	indexPk.shouldUpdate;
+			pk = pk.value;
+		}
 		keys[pkName] = place.replaceString(pk);
+		if (typeof sk == "function") {
+			const result = sk(instance);
+			if (typeof result == "string") {
+				sk = result;
+			} else {
+				sk = result.value;
+				// indexPkShouldUpdate =
+				// 	result.shouldUpdate;
+			}
+		} else if (typeof sk == "object") {
+			// indexPkShouldUpdate =
+			// 	indexPk.shouldUpdate;
+			sk = sk.value;
+		}
 		if (skName && sk) {
 			keys[skName] = typeof sk == "number" ? sk : place.replaceString(sk);
 		}
