@@ -1,4 +1,4 @@
-import { IndexType, Key } from "../models";
+import { Condition, DynamoDBMap, IndexType, Key } from "../models";
 import { Duration } from "luxon";
 import { ClassDecorator } from "../../base/decorators";
 
@@ -8,8 +8,16 @@ import { ClassDecorator } from "../../base/decorators";
 // 	sortKey?: string | number;
 // }
 
+export interface AccessPatternKey {
+	[key: string]:
+		| string
+		| number
+		| Condition
+		| ((placeholderValues: DynamoDBMap) => string | number | Condition);
+}
+
 export interface AccessPatternsProps {
-	[path: string]: Key;
+	[path: string]: AccessPatternKey;
 }
 
 export type AccessPatternsClass = { accessPatterns?: AccessPatternsProps };

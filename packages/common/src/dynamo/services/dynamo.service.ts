@@ -52,7 +52,12 @@ import {
 	ProvisionedThroughputExceededError,
 	TransactionConflictError,
 } from "../errors";
-import { AccessPatternsClass, Entity } from "../decorators";
+import {
+	AccessPatternKey,
+	AccessPatternsClass,
+	AccessPatternsProps,
+	Entity,
+} from "../decorators";
 import {
 	capitalize,
 	fromPairs,
@@ -452,7 +457,7 @@ export class DynamoService extends BaseService {
 				);
 				// key = accessProps.key;
 			} else if (accessPattern) {
-				key = this.queryAccessPatterns({ entity, accessPattern });
+				const key = this.queryAccessPatterns({ entity, accessPattern });
 				accessProps = this.tables[TableName].getAccessProps(
 					key,
 					placeholderValues
@@ -987,10 +992,13 @@ export class DynamoService extends BaseService {
 	private queryAccessPatterns(props: {
 		entity: AccessPatternsClass;
 		accessPattern: string;
-	}): Key {
+	}): AccessPatternKey {
 		const { entity, accessPattern } = props;
-		const key = (entity.accessPatterns ??
-			(entity.constructor as any).accessPatterns)?.[accessPattern];
+		const key = (
+			(entity.accessPatterns ??
+				(entity.constructor as any)
+					.accessPatterns) as AccessPatternsProps
+		)?.[accessPattern];
 		if (!key) {
 			throw new Error("Access Path does not exist");
 		}

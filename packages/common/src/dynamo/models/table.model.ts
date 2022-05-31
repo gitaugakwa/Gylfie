@@ -6,11 +6,13 @@ import {
 	filter,
 	fromPairs,
 	keys,
+	map,
 	reduce,
+	transform,
 } from "lodash";
 import "reflect-metadata";
 import { getMetadata } from "../../base/metadata";
-import { EntityProps } from "../decorators";
+import { AccessPatternKey, EntityProps } from "../decorators";
 import { Placeholder } from "../placeholders";
 import { Conversion } from "./conversion.model";
 import { EntityInterfaceProps } from "./entity.model";
@@ -92,33 +94,40 @@ export class Table {
 	constructor(public structure: TableProps) {}
 
 	public getAccessProps(
-		key: Key,
+		key: Key | AccessPatternKey,
 		placeholderValues?: DynamoDBMap
 	): AccessProperties {
 		key = cloneDeep(key);
 		if (entries(key).length == 0) {
 			throw new Error("Key provided is empty");
 		}
-		const indexes = keys(key).map((key) => {
+		const indexes = map(keys(key), (key) => {
 			return this.findIndexFromKeyName(key);
 		});
 
-		if (placeholderValues) {
-			const place = new Placeholder(placeholderValues);
-			for (const [name, value] of entries(key)) {
-				if (typeof value == "number") {
-					continue;
+		const place = new Placeholder(placeholderValues ?? {});
+		const actualKey = transform(
+			entries(key),
+			(acc, [name, value]) => {
+				if (typeof value == "function") {
+					value = value(placeholderValues ?? {});
 				}
-				if (typeof value == "string") {
-					key[name] = place.replaceString(value);
-					continue;
+				if (placeholderValues) {
+					if (typeof value == "number") {
+						return;
+					}
+					if (typeof value == "string") {
+						acc[name] = place.replaceString(value);
+						return;
+					}
+					if (typeof value.value == "string") {
+						value.value = place.replaceString(value.value);
+						acc[name] = value;
+					}
 				}
-				if (typeof value.value == "string") {
-					value.value = place.replaceString(value.value);
-					key[name] = value;
-				}
-			}
-		}
+			},
+			{} as Key
+		);
 
 		// Only the PartitionKey was provided
 		if (indexes.length == 1 && entries(key).length == 1) {
@@ -136,7 +145,7 @@ export class Table {
 				);
 			}
 			const { ExpressionAttributeValues, KeyConditionExpression } =
-				Conversion.parseKey(key).generateExpression();
+				Conversion.parseKey(actualKey).generateExpression();
 			switch (pkIndexes[0].type) {
 				case TABLE_TYPE.BASE: {
 					return new AccessProperties(
@@ -144,7 +153,7 @@ export class Table {
 							ExpressionAttributeValues,
 							KeyConditionExpression,
 						},
-						key
+						actualKey
 					);
 				}
 				case TABLE_TYPE.GSI:
@@ -155,7 +164,7 @@ export class Table {
 							ExpressionAttributeValues,
 							KeyConditionExpression,
 						},
-						key
+						actualKey
 					);
 				}
 			}
@@ -179,7 +188,7 @@ export class Table {
 			);
 		}
 		const { ExpressionAttributeValues, KeyConditionExpression } =
-			Conversion.parseKey(key).generateExpression();
+			Conversion.parseKey(actualKey).generateExpression();
 		switch (commonIndexes[0].type) {
 			case TABLE_TYPE.BASE: {
 				return new AccessProperties(
@@ -187,7 +196,7 @@ export class Table {
 						ExpressionAttributeValues,
 						KeyConditionExpression,
 					},
-					key
+					actualKey
 				);
 			}
 			case TABLE_TYPE.GSI:
@@ -198,7 +207,7 @@ export class Table {
 						ExpressionAttributeValues,
 						KeyConditionExpression,
 					},
-					key
+					actualKey
 				);
 			}
 		}
